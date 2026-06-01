@@ -405,21 +405,50 @@ footer{background:var(--ink);color:var(--paper);padding:3.5rem clamp(1.2rem,4vw,
 </footer>
 
 <script>
-/* ====== DAILY CART STATUS — EDIT THESE TWO LINES ======
-   Set each to "open" or "closed". Save, commit, push.
+/* ====== DAILY CART STATUS — reads from your Google Sheet ======
+   You do NOT edit code to change status anymore.
+   Change the cells in your Google Sheet instead (see setup notes).
+   Only edit the URL below if your sheet's published link ever changes.
 */
-var BROADWAY_STATUS = "closed";   // Lowe's on Broadway (Spokane Valley)
-var CDA_STATUS      = "closed";   // Lowe's — Coeur d'Alene
-/* ======================================================= */
+var STATUS_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSUbWgJG-q6UHe0jUGO3xahDVI-TU7SxKhSq5XYLs2KSy2If8W4R9AwmeUI1uytzipwK1uDL7aT8RPG/pub?output=csv";
+/* ============================================================== */
 (function(){
-  function setStatus(id, state){
+  function paint(id, state){
     var el=document.getElementById(id); if(!el) return;
-    var open = (state||"").toLowerCase()==="open";
-    el.classList.add(open?"open":"closed");
-    el.querySelector(".label").textContent = open ? "Open Today" : "Closed Today";
+    var s=(state||"").toString().trim().toLowerCase();
+    var label=el.querySelector(".label");
+    if(s==="open"){
+      el.classList.remove("closed"); el.classList.add("open");
+      label.textContent="Open Today"; el.style.display="";
+    } else if(s==="closed"){
+      el.classList.remove("open"); el.classList.add("closed");
+      label.textContent="Closed Today"; el.style.display="";
+    } else {
+      el.style.display="none"; // unknown/blank -> hide badge rather than show wrong info
+    }
   }
-  setStatus("statusBroadway", BROADWAY_STATUS);
-  setStatus("statusCDA", CDA_STATUS);
+  function hideBoth(){
+    var a=document.getElementById("statusBroadway"), b=document.getElementById("statusCDA");
+    if(a) a.style.display="none"; if(b) b.style.display="none";
+  }
+  if(!STATUS_SHEET_CSV || STATUS_SHEET_CSV.indexOf("PASTE_")===0){ hideBoth(); return; }
+  fetch(STATUS_SHEET_CSV + (STATUS_SHEET_CSV.indexOf("?")>-1?"&":"?") + "t=" + Date.now())
+    .then(function(r){ return r.ok ? r.text() : Promise.reject(); })
+    .then(function(csv){
+      // Expect rows like:  cart,status   e.g.  broadway,open  /  cda,closed
+      var map={};
+      csv.split(/\r?\n/).forEach(function(line){
+        var parts=line.split(",");
+        if(parts.length>=2){
+          var key=parts[0].trim().toLowerCase();
+          var val=parts[1].trim().toLowerCase();
+          map[key]=val;
+        }
+      });
+      paint("statusBroadway", map["broadway"]);
+      paint("statusCDA", map["cda"]);
+    })
+    .catch(hideBoth);
 })();
 document.getElementById('yr').textContent=new Date().getFullYear();
 const burger=document.getElementById('burger'),navLinks=document.getElementById('navLinks');
