@@ -376,6 +376,12 @@ footer{background:var(--ink);color:var(--paper);padding:3.5rem clamp(1.2rem,4vw,
       <button class="btn btn-primary" style="width:100%;justify-content:center" id="bBtn" type="submit">Send Request &rarr;</button>
       <div id="bMsg"></div>
     </form>
+    <div class="book-confirm reveal" id="bConfirm">
+      <div class="bc-check">&#10003;</div>
+      <h3>Request Received!</h3>
+      <p>Thanks &mdash; your catering request is in. We'll review your date and get back to you shortly with availability and a quote.</p>
+      <p class="bc-sub">Need an answer fast? Call or text <b>David or Seth</b> at <a href="tel:+15099038106">(509) 903-8106</a>.</p>
+    </div>
   </div>
 </section>
 
@@ -420,6 +426,28 @@ burger.addEventListener('click',()=>navLinks.classList.toggle('open'));
 navLinks.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>navLinks.classList.remove('open')));
 const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');obs.unobserve(e.target)}})},{threshold:.1});
 document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
+// AJAX submit so Netlify's default page never shows — reveal branded panel instead
+(function(){
+  var form=document.querySelector('.book-form');
+  if(!form) return;
+  form.addEventListener('submit',function(e){
+    e.preventDefault();
+    var btn=document.getElementById('bBtn');
+    var msg=document.getElementById('bMsg');
+    if(btn){btn.disabled=true;btn.textContent='Sending...';}
+    var data=new URLSearchParams(new FormData(form)).toString();
+    fetch('/',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:data})
+      .then(function(){
+        var confirm=document.getElementById('bConfirm');
+        form.style.display='none';
+        if(confirm){confirm.style.display='block';confirm.classList.add('visible');confirm.scrollIntoView({behavior:'smooth',block:'center'});}
+      })
+      .catch(function(){
+        if(btn){btn.disabled=false;btn.innerHTML='Send Request &rarr;';}
+        if(msg){msg.style.display='block';msg.textContent='Something went wrong sending your request. Please call or text (509) 903-8106 and we\u2019ll take care of you.';}
+      });
+  });
+})();
 </script>
 </body>
 </html>
