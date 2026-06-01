@@ -381,6 +381,7 @@ footer{background:var(--ink);color:var(--paper);padding:3.5rem clamp(1.2rem,4vw,
       <h3>Request Received!</h3>
       <p>Thanks &mdash; your catering request is in. We'll review your date and get back to you shortly with availability and a quote.</p>
       <p class="bc-sub">Need an answer fast? Call or text <b>David or Seth</b> at <a href="tel:+15099038106">(509) 903-8106</a>.</p>
+      <p class="bc-sub" style="margin-top:1rem">Made a mistake or need to send another? <a href="#" id="bAgain">Send another request</a></p>
     </div>
   </div>
 </section>
@@ -447,6 +448,21 @@ document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
         if(msg){msg.style.display='block';msg.textContent='Something went wrong sending your request. Please call or text (509) 903-8106 and we\u2019ll take care of you.';}
       });
   });
+  var again=document.getElementById('bAgain');
+  if(again){
+    again.addEventListener('click',function(e){
+      e.preventDefault();
+      var confirm=document.getElementById('bConfirm');
+      var btn=document.getElementById('bBtn');
+      if(confirm){confirm.style.display='none';}
+      var em=document.getElementById('bMsg');
+      if(em){em.style.display='none';em.textContent='';}
+      form.reset();
+      form.style.display='';
+      if(btn){btn.disabled=false;btn.innerHTML='Send Request &rarr;';}
+      form.scrollIntoView({behavior:'smooth',block:'center'});
+    });
+  }
 })();
 </script>
 </body>
