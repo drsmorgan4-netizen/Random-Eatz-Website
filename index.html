@@ -357,7 +357,7 @@ footer{background:var(--ink);color:var(--paper);padding:3.5rem clamp(1.2rem,4vw,
       <div class="detail"><span class="ic">&#9993;</span><span>randomeatz@outlook.com</span></div>
       <div class="detail"><span class="ic">&#9673;</span><span>@random.eatz.and.catering</span></div>
     </div>
-    <form class="book-form reveal" name="catering" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/thanks.html">
+    <form class="book-form reveal" name="catering" method="POST" data-netlify="true" netlify-honeypot="bot-field" action="/thanks">
       <input type="hidden" name="form-name" value="catering">
       <p style="display:none"><label>Don't fill this out if you're human: <input name="bot-field"></label></p>
       <div class="frow">
@@ -376,12 +376,6 @@ footer{background:var(--ink);color:var(--paper);padding:3.5rem clamp(1.2rem,4vw,
       <button class="btn btn-primary" style="width:100%;justify-content:center" id="bBtn" type="submit">Send Request &rarr;</button>
       <div id="bMsg"></div>
     </form>
-    <div class="book-confirm reveal" id="bConfirm">
-      <div class="bc-check">&#10003;</div>
-      <h3>Request Received!</h3>
-      <p>Thanks &mdash; your catering request is in. We'll review your date and get back to you shortly with availability and a quote.</p>
-      <p class="bc-sub">Need an answer fast? Call or text <b>David or Seth</b> at <a href="tel:+15099038106">(509) 903-8106</a>.</p>
-    </div>
   </div>
 </section>
 
@@ -426,17 +420,6 @@ burger.addEventListener('click',()=>navLinks.classList.toggle('open'));
 navLinks.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>navLinks.classList.remove('open')));
 const obs=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');obs.unobserve(e.target)}})},{threshold:.1});
 document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
-// After Netlify processes the form it redirects back with ?submitted=true
-if(new URLSearchParams(window.location.search).get('submitted')==='true'){
-  var form=document.querySelector('.book-form');
-  var confirm=document.getElementById('bConfirm');
-  if(form&&confirm){
-    form.style.display='none';
-    confirm.style.display='block';
-    confirm.classList.add('visible');
-    confirm.scrollIntoView({behavior:'smooth',block:'center'});
-  }
-}
 </script>
 </body>
 </html>
