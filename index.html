@@ -122,6 +122,12 @@ section{padding:clamp(3rem,6vw,5.5rem) clamp(1.2rem,4vw,3rem)}
 .find{background:var(--paper)}
 .find-list{max-width:780px;margin:0 auto;border-top:1px solid var(--line)}
 .find-row{display:grid;grid-template-columns:200px 1fr;gap:1.5rem;padding:1.7rem 0;border-bottom:1px solid var(--line);align-items:start}
+.cart-status{display:inline-flex;align-items:center;gap:.45rem;font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:.92rem;padding:.3rem .7rem;border-radius:6px;margin-top:.5rem}
+.cart-status .dot{width:9px;height:9px;border-radius:50%}
+.cart-status.open{background:rgba(34,160,70,.15);color:#1f8a3d}
+.cart-status.open .dot{background:#22a046}
+.cart-status.closed{background:rgba(170,40,40,.13);color:#b23535}
+.cart-status.closed .dot{background:#c23b3b}
 .find-row .day{font-family:'Oswald',sans-serif;font-weight:700;text-transform:uppercase;font-size:1.25rem;letter-spacing:.02em}
 .find-row .day small{display:block;font-family:'Work Sans',sans-serif;text-transform:none;font-weight:500;color:var(--rust);font-size:.85rem;letter-spacing:.05em;margin-top:.2rem}
 .find-row .venue h4{font-size:1.3rem;font-weight:600;margin-bottom:.2rem}
@@ -262,11 +268,11 @@ footer{background:var(--ink);color:var(--paper);padding:3.5rem clamp(1.2rem,4vw,
     <div class="find-list">
       <div class="find-row reveal">
         <div class="day">Thursday&ndash;Monday</div>
-        <div class="venue"><h4>Lowe's on Broadway</h4><p>Spokane Valley, WA</p><p class="time">Open Thu&ndash;Mon &middot; or until we sell out</p></div>
+        <div class="venue"><h4>Lowe's on Broadway</h4><p>Spokane Valley, WA</p><p class="time">Open Thu&ndash;Mon &middot; or until we sell out</p><span class="cart-status" id="statusBroadway"><span class="dot"></span><span class="label"></span></span></div>
       </div>
       <div class="find-row reveal">
         <div class="day">Thursday&ndash;Monday</div>
-        <div class="venue"><h4>Lowe's &mdash; Coeur d'Alene</h4><p>Coeur d'Alene, ID</p><p class="time">Open Thu&ndash;Mon &middot; or until we sell out</p></div>
+        <div class="venue"><h4>Lowe's &mdash; Coeur d'Alene</h4><p>Coeur d'Alene, ID</p><p class="time">Open Thu&ndash;Mon &middot; or until we sell out</p><span class="cart-status" id="statusCDA"><span class="dot"></span><span class="label"></span></span></div>
       </div>
     </div>
     <p class="find-foot reveal">Hours shift when we're out catering &mdash; <a href="https://instagram.com/random.eatz.and.catering" target="_blank" rel="noopener">follow @random.eatz.and.catering</a> to see where we'll be next.</p>
@@ -398,6 +404,22 @@ footer{background:var(--ink);color:var(--paper);padding:3.5rem clamp(1.2rem,4vw,
 </footer>
 
 <script>
+/* ====== DAILY CART STATUS — EDIT THESE TWO LINES ======
+   Set each to "open" or "closed". Save, commit, push.
+*/
+var BROADWAY_STATUS = "closed";   // Lowe's on Broadway (Spokane Valley)
+var CDA_STATUS      = "closed";   // Lowe's — Coeur d'Alene
+/* ======================================================= */
+(function(){
+  function setStatus(id, state){
+    var el=document.getElementById(id); if(!el) return;
+    var open = (state||"").toLowerCase()==="open";
+    el.classList.add(open?"open":"closed");
+    el.querySelector(".label").textContent = open ? "Open Today" : "Closed Today";
+  }
+  setStatus("statusBroadway", BROADWAY_STATUS);
+  setStatus("statusCDA", CDA_STATUS);
+})();
 document.getElementById('yr').textContent=new Date().getFullYear();
 const burger=document.getElementById('burger'),navLinks=document.getElementById('navLinks');
 burger.addEventListener('click',()=>navLinks.classList.toggle('open'));
