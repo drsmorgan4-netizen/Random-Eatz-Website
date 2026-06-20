@@ -478,7 +478,7 @@ var SPECIALS_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa078
       });
       if(items.length){
         var list=items.map(function(n){ return '<span class="sp-item">'+n.replace(/</g,"&lt;")+'</span>'; }).join("");
-        box.innerHTML='<div class="sp-title">Now Serving Today</div><div class="sp-list">'+list+'</div>';
+        box.innerHTML='<div class="sp-title">Random Creations for Today:</div><div class="sp-list">'+list+'</div>';
       } else { clear(); }
     })
     .catch(clear);
