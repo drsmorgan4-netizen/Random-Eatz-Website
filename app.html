@@ -12,718 +12,479 @@
 <title>Random Eatz Command Center</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  :root {
-    --bg: #FAFAF8; --card: #fff; --primary: #C8102E; --accent: #F5A623;
-    --success: #2D8A4E; --success-light: #E8F5EC; --danger: #C0392B; --danger-light: #FDECEB;
-    --accent-light: #FFF3DC; --text: #1A1A1A; --muted: #6B7280;
-    --border: #E8E5E0; --border-light: #F0EDE8; --blue: #4285F4;
-    --safe-bottom: env(safe-area-inset-bottom, 0px);
-  }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; max-width: 800px; margin: 0 auto; }
-  
-  /* Header */
-  .header { background: var(--primary); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; padding-top: max(16px, env(safe-area-inset-top)); }
-  .header-title { color: #fff; font-size: 20px; font-weight: 800; letter-spacing: -0.5px; }
-  .header-sub { color: rgba(255,255,255,0.7); font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; }
-  .refresh-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); border-radius: 8px; padding: 8px 12px; color: #fff; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 6px; }
-  
-  /* Status bar */
-  .status-bar { padding: 5px 20px; font-size: 11px; color: var(--muted); background: var(--border-light); }
-  
-  /* Content */
-  .content { padding: 16px 16px 100px; }
-  
-  /* Bottom Nav */
-  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 800px; background: var(--card); border-top: 1px solid var(--border); display: flex; justify-content: space-around; padding: 6px 0; padding-bottom: calc(6px + var(--safe-bottom)); z-index: 100; }
-  .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 16px; background: none; border: none; cursor: pointer; color: var(--muted); font-size: 11px; font-weight: 500; position: relative; }
-  .nav-btn.active { color: var(--primary); font-weight: 700; }
-  .nav-btn.active::before { content: ''; position: absolute; top: -6px; width: 24px; height: 3px; background: var(--primary); border-radius: 2px; }
-  .nav-icon { font-size: 22px; line-height: 1; }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--bg:#FAFAF8;--card:#fff;--pri:#C8102E;--accent:#F5A623;--green:#2D8A4E;--greenL:#E8F5EC;--red:#C0392B;--redL:#FDECEB;--accentL:#FFF3DC;--txt:#1A1A1A;--mut:#6B7280;--brd:#E8E5E0;--brdL:#F0EDE8;--blue:#4285F4;--sab:env(safe-area-inset-bottom,0px)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;max-width:800px;margin:0 auto}
 
-  /* Cards */
-  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-  .stat-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
-  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; flex: 1 1 140px; min-width: 140px; }
-  .stat-label { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
-  .stat-value { font-size: 24px; font-weight: 700; }
-  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.header{background:var(--pri);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;padding-top:max(16px,env(safe-area-inset-top))}
+.header-title{color:#fff;font-size:20px;font-weight:800;letter-spacing:-0.5px}
+.header-sub{color:rgba(255,255,255,.7);font-size:11px;font-weight:500;letter-spacing:1px;text-transform:uppercase}
+.refresh-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:8px 12px;color:#fff;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:6px}
+.status-bar{padding:5px 20px;font-size:11px;color:var(--mut);background:var(--brdL)}
+.content{padding:16px 16px 100px}
 
-  /* Event Cards */
-  .event-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 8px; overflow: hidden; }
-  .event-card-inner { padding: 14px 16px; }
-  .event-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; line-height: 1.3; }
-  .event-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; color: var(--muted); }
-  .event-expanded { border-top: 1px solid var(--border-light); padding: 12px 16px; background: var(--bg); display: none; }
-  .event-expanded.open { display: block; }
-  .event-notes { font-size: 13px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 12px; line-height: 1.5; }
-  .event-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.bottom-nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:800px;background:var(--card);border-top:1px solid var(--brd);display:flex;justify-content:space-around;padding:6px 0;padding-bottom:calc(6px + var(--sab));z-index:100}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 12px;background:none;border:none;cursor:pointer;color:var(--mut);font-size:11px;font-weight:500;position:relative}
+.nav-btn.active{color:var(--pri);font-weight:700}
+.nav-btn.active::before{content:'';position:absolute;top:-6px;width:24px;height:3px;background:var(--pri);border-radius:2px}
+.nav-icon{font-size:20px;line-height:1}
 
-  /* Badges */
-  .badge { padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; white-space: nowrap; }
-  .badge-completed { background: var(--success-light); color: var(--success); }
-  .badge-booked { background: var(--accent-light); color: #B8860B; }
-  .badge-pending { background: #FEF3E2; color: #E67E22; }
-  .badge-today { background: var(--primary); color: #fff; font-size: 10px; padding: 1px 6px; margin-left: 4px; border-radius: 10px; }
-  .badge-soon { background: var(--accent); color: #fff; font-size: 10px; padding: 1px 6px; margin-left: 4px; border-radius: 10px; }
+.stat-grid{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.stat-card{background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:16px;flex:1 1 140px;min-width:140px}
+.stat-label{font-size:12px;color:var(--mut);font-weight:500;margin-bottom:6px}
+.stat-value{font-size:24px;font-weight:700}
+.stat-sub{font-size:12px;color:var(--mut);margin-top:2px}
 
-  /* Buttons */
-  .btn { border: none; border-radius: 10px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
-  .btn-primary { background: var(--primary); color: #fff; }
-  .btn-success { background: var(--success); color: #fff; }
-  .btn-blue { background: var(--blue); color: #fff; }
-  .btn-outline { background: var(--bg); color: var(--text); border: 1px solid var(--border) !important; border-radius: 8px !important; padding: 10px 14px !important; font-size: 13px !important; }
-  .btn-complete { background: var(--success); color: #fff; border: none; border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1; }
-  .btn-email { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 13px; font-weight: 600; cursor: pointer; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1; }
-  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn:active { transform: scale(0.98); }
+.section-header{font-size:13px;font-weight:700;color:var(--txt);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;margin-top:16px}
 
-  /* Section headers */
-  .section-header { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.event-card{background:var(--card);border:1px solid var(--brd);border-radius:12px;margin-bottom:8px;overflow:hidden}
+.event-inner{padding:14px 16px}
+.event-name{font-size:15px;font-weight:700;margin-bottom:4px;line-height:1.3}
+.event-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:13px;color:var(--mut)}
+.event-detail{border-top:1px solid var(--brdL);padding:12px 16px;background:var(--bg);display:none}
+.event-detail.open{display:block}
+.event-notes{font-size:13px;background:var(--card);border:1px solid var(--brd);border-radius:8px;padding:10px;margin-bottom:10px;line-height:1.5}
+.event-actions{display:flex;gap:8px;flex-wrap:wrap}
 
-  /* Cart status */
-  .cart-grid { display: flex; flex-wrap: wrap; gap: 8px; }
-  .cart-card { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; flex: 1 1 140px; min-width: 140px; }
-  .cart-card.open { background: var(--success-light); border-color: var(--success); }
-  .cart-card.closed { background: var(--bg); }
-  .cart-name { font-weight: 600; font-size: 14px; }
-  .cart-status { font-size: 13px; font-weight: 600; margin-top: 4px; }
-  .cart-card.open .cart-status { color: var(--success); }
-  .cart-card.closed .cart-status { color: var(--muted); }
+.badge{padding:2px 10px;border-radius:20px;font-size:12px;font-weight:600;white-space:nowrap}
+.b-done{background:var(--greenL);color:var(--green)}.b-booked{background:var(--accentL);color:#B8860B}
+.b-today{background:var(--pri);color:#fff;font-size:10px;padding:1px 6px;margin-left:4px;border-radius:10px}
+.b-soon{background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;margin-left:4px;border-radius:10px}
 
-  /* Form */
-  .form-group { margin-bottom: 14px; }
-  .form-row { display: flex; gap: 10px; flex-wrap: wrap; }
-  .form-row .form-group { flex: 1 1 140px; }
-  label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-  input, select, textarea { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); font-size: 15px; background: var(--card); color: var(--text); outline: none; font-family: inherit; }
-  input:focus, select:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(200,16,46,0.13); }
-  textarea { resize: vertical; min-height: 60px; }
-  .deposit-preview { background: var(--accent-light); border: 1px solid var(--accent); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 14px; }
+.btn{border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.btn:active{transform:scale(.98)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-pri{background:var(--pri);color:#fff}.btn-green{background:var(--green);color:#fff}
+.btn-blue{background:var(--blue);color:#fff}.btn-outline{background:var(--bg);color:var(--txt);border:1px solid var(--brd)!important}
+.btn-sm{padding:10px 14px;font-size:13px;border-radius:8px;width:auto;flex:1}
 
-  /* AI Status */
-  .ai-status { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
-  .ai-status.thinking { background: var(--accent-light); color: var(--text); border: 1px solid var(--accent); }
-  .ai-status.success { background: var(--success-light); color: var(--success); border: 1px solid var(--success); }
-  .ai-status.error { background: var(--danger-light); color: var(--danger); border: 1px solid var(--danger); }
+.filters{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.fbtn{padding:6px 14px;border-radius:20px;border:1px solid var(--brd);background:var(--card);color:var(--txt);font-size:13px;font-weight:600;cursor:pointer}
+.fbtn.active{background:var(--pri);color:#fff;border-color:var(--pri)}
 
-  /* Modal */
-  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; display: flex; align-items: flex-end; justify-content: center; }
-  .modal { background: var(--card); border-radius: 20px 20px 0 0; width: 100%; max-width: 800px; max-height: 90vh; overflow-y: auto; padding: 20px; padding-bottom: calc(20px + var(--safe-bottom)); }
-  .modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-  .modal-title { font-size: 17px; font-weight: 800; }
-  .modal-sub { font-size: 13px; color: var(--muted); }
-  .close-btn { background: var(--border-light); border: none; border-radius: 8px; padding: 8px; cursor: pointer; font-size: 18px; line-height: 1; color: var(--muted); }
+/* Toggle switch */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border:1px solid var(--brd);border-radius:10px;margin-bottom:8px}
+.toggle-info{display:flex;flex-direction:column;gap:2px}
+.toggle-label{font-size:15px;font-weight:600;color:var(--txt)}
+.toggle-sub{font-size:12px;color:var(--mut)}
+.toggle{position:relative;width:52px;height:30px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .slider{position:absolute;inset:0;background:#ccc;border-radius:15px;cursor:pointer;transition:.3s}
+.toggle .slider::before{content:'';position:absolute;width:24px;height:24px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle input:checked+.slider{background:var(--green)}
+.toggle input:checked+.slider::before{transform:translateX(22px)}
 
-  /* Filters */
-  .filters { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
-  .filter-btn { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer; }
-  .filter-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+/* Forms */
+.form-group{margin-bottom:14px}
+.form-row{display:flex;gap:10px;flex-wrap:wrap}
+.form-row .form-group{flex:1 1 140px}
+label{display:block;font-size:13px;font-weight:600;color:var(--txt);margin-bottom:4px}
+input,select,textarea{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--brd);font-size:15px;background:var(--card);color:var(--txt);outline:none;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:var(--pri);box-shadow:0 0 0 2px rgba(200,16,46,.13)}
+textarea{resize:vertical;min-height:60px}
+.deposit-preview{background:var(--accentL);border:1px solid var(--accent);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:14px}
 
-  /* Info box */
-  .info-box { background: var(--accent-light); border: 1px solid var(--accent); border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; line-height: 1.6; }
-  .warning-box { background: #FEF3E2; border: 1px solid var(--accent); border-radius: 8px; padding: 8px 12px; font-size: 12px; color: var(--text); margin-bottom: 12px; }
+.ai-msg{margin-top:10px;padding:10px 14px;border-radius:10px;font-size:13px;line-height:1.5;display:none}
+.ai-msg.ok{display:block;background:var(--greenL);color:var(--green);border:1px solid var(--green)}
+.ai-msg.err{display:block;background:var(--redL);color:var(--red);border:1px solid var(--red)}
+.ai-msg.busy{display:block;background:var(--accentL);color:var(--txt);border:1px solid var(--accent)}
 
-  /* Google post templates */
-  .template-btn { text-align: left; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-size: 13px; cursor: pointer; width: 100%; margin-bottom: 6px; }
-  .template-btn.selected { border-color: var(--primary); background: rgba(200,16,46,0.06); font-weight: 600; }
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:800px;max-height:90vh;overflow-y:auto;padding:20px;padding-bottom:calc(20px + var(--sab))}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.modal-title{font-size:17px;font-weight:800}
+.modal-sub{font-size:13px;color:var(--mut)}
+.close-btn{background:var(--brdL);border:none;border-radius:8px;padding:8px;cursor:pointer;font-size:18px;line-height:1;color:var(--mut)}
 
+.info-box{background:var(--accentL);border:1px solid var(--accent);border-radius:8px;padding:10px 12px;font-size:13px;margin-bottom:14px;line-height:1.6}
+.warn-box{background:#FEF3E2;border:1px solid var(--accent);border-radius:8px;padding:8px 12px;font-size:12px;margin-bottom:12px}
 
-  /* Password screen */
-  .pw-screen { position: fixed; inset: 0; background: #C8102E; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; }
-  .pw-logo { width: 140px; height: 140px; border-radius: 30px; margin-bottom: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
-  .pw-title { color: #fff; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px; }
-  .pw-sub { color: rgba(255,255,255,0.7); font-size: 14px; margin-bottom: 32px; }
-  .pw-input { width: 100%; max-width: 300px; padding: 14px 16px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.15); color: #fff; font-size: 18px; text-align: center; letter-spacing: 2px; outline: none; font-family: inherit; margin-bottom: 12px; }
-  .pw-input::placeholder { color: rgba(255,255,255,0.5); letter-spacing: 0; }
-  .pw-input:focus { border-color: #FFD700; background: rgba(255,255,255,0.2); }
-  .pw-btn { width: 100%; max-width: 300px; background: #FFD700; color: #1A1A1A; border: none; border-radius: 12px; padding: 14px; font-size: 16px; font-weight: 800; cursor: pointer; }
-  .pw-error { color: #FFD700; font-size: 14px; margin-top: 8px; min-height: 20px; }
-  /* Spin animation */
-  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-  .spin { animation: spin 1s linear infinite; display: inline-block; }
+.template-btn{text-align:left;padding:8px 12px;border-radius:8px;border:1px solid var(--brd);background:var(--bg);color:var(--txt);font-size:13px;cursor:pointer;width:100%;margin-bottom:6px}
+.template-btn.sel{border-color:var(--pri);background:rgba(200,16,46,.06);font-weight:600}
 
-  /* Hidden */
-  .hidden { display: none !important; }
+.pw-screen{position:fixed;inset:0;background:#C8102E;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px}
+.pw-logo{width:140px;height:140px;border-radius:30px;margin-bottom:24px;box-shadow:0 8px 32px rgba(0,0,0,.3)}
+.pw-title{color:#fff;font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:4px}
+.pw-sub{color:rgba(255,255,255,.7);font-size:14px;margin-bottom:32px}
+.pw-input{width:100%;max-width:300px;padding:14px 16px;border-radius:12px;border:2px solid rgba(255,255,255,.3);background:rgba(255,255,255,.15);color:#fff;font-size:18px;text-align:center;letter-spacing:2px;outline:none;font-family:inherit;margin-bottom:12px}
+.pw-input::placeholder{color:rgba(255,255,255,.5);letter-spacing:0}
+.pw-input:focus{border-color:#FFD700;background:rgba(255,255,255,.2)}
+.pw-btn{width:100%;max-width:300px;background:#FFD700;color:#1A1A1A;border:none;border-radius:12px;padding:14px;font-size:16px;font-weight:800;cursor:pointer}
+.pw-error{color:#FFD700;font-size:14px;margin-top:8px;min-height:20px}
 
-  /* Chevron */
-  .chevron-btn { background: none; border: none; cursor: pointer; padding: 4px; color: var(--muted); font-size: 16px; line-height: 1; }
-  .row-between { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  .flex-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.spin{animation:spin 1s linear infinite;display:inline-block}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
 
-
-<!-- Password Screen -->
+<!-- Password -->
 <div class="pw-screen" id="pw-screen">
-  <img src="/icon-192.png" class="pw-logo" alt="Random Eatz" />
-  <div class="pw-title">Random Eatz</div>
-  <div class="pw-sub">Command Center — Family Access Only</div>
-  <input class="pw-input" type="password" id="pw-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkPW()" autofocus />
-  <button class="pw-btn" onclick="checkPW()">Enter ⚡</button>
-  <div class="pw-error" id="pw-error"></div>
+<img src="/icon-192.png" class="pw-logo" alt="Random Eatz"/>
+<div class="pw-title">Random Eatz</div>
+<div class="pw-sub">Command Center — Family Access Only</div>
+<input class="pw-input" type="password" id="pw-input" placeholder="Enter password" onkeydown="if(event.key==='Enter')checkPW()" autofocus/>
+<button class="pw-btn" onclick="checkPW()">Enter ⚡</button>
+<div class="pw-error" id="pw-error"></div>
 </div>
 
 <!-- Header -->
 <div class="header">
-  <div>
-    <div class="header-title">Random Eatz</div>
-    <div class="header-sub">⚡ Command Center</div>
-  </div>
-  <button class="refresh-btn" onclick="loadData()">
-    <span id="refresh-icon">↻</span> <span id="refresh-label">Refresh</span>
-  </button>
+<div><div class="header-title">Random Eatz</div><div class="header-sub">⚡ Command Center</div></div>
+<button class="refresh-btn" onclick="loadData()"><span id="ri">↻</span> <span id="rl">Refresh</span></button>
 </div>
-<div class="status-bar" id="status-bar">Loading...</div>
+<div class="status-bar" id="sbar">Loading...</div>
 
 <!-- Content -->
 <div class="content">
-  <div id="view-dashboard"></div>
-  <div id="view-events" class="hidden"></div>
-  <div id="view-carts" class="hidden"></div>
-  <div id="view-book" class="hidden"></div>
+<div id="v-dash"></div>
+<div id="v-events" class="hidden"></div>
+<div id="v-ops" class="hidden"></div>
+<div id="v-book" class="hidden"></div>
 </div>
 
-<!-- Bottom Nav -->
+<!-- Nav -->
 <nav class="bottom-nav">
-  <button class="nav-btn active" onclick="showTab('dashboard')" id="nav-dashboard">
-    <span class="nav-icon">🏠</span>Home
-  </button>
-  <button class="nav-btn" onclick="showTab('events')" id="nav-events">
-    <span class="nav-icon">📅</span>Events
-  </button>
-  <button class="nav-btn" onclick="showTab('carts')" id="nav-carts">
-    <span class="nav-icon">🚚</span>Carts
-  </button>
-  <button class="nav-btn" onclick="showTab('book')" id="nav-book">
-    <span class="nav-icon">➕</span>Book
-  </button>
+<button class="nav-btn active" onclick="showTab('dash')" id="n-dash"><span class="nav-icon">🏠</span>Home</button>
+<button class="nav-btn" onclick="showTab('events')" id="n-events"><span class="nav-icon">📅</span>Events</button>
+<button class="nav-btn" onclick="showTab('ops')" id="n-ops"><span class="nav-icon">🚚</span>Ops</button>
+<button class="nav-btn" onclick="showTab('book')" id="n-book"><span class="nav-icon">➕</span>Book</button>
 </nav>
 
 <!-- Complete Modal -->
-<div class="modal-overlay hidden" id="complete-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div><div class="modal-title">✅ Mark Complete</div><div class="modal-sub" id="complete-event-name"></div></div>
-      <button class="close-btn" onclick="closeCompleteModal()">✕</button>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Guests Served</label><input type="number" id="complete-guests" placeholder="130" /></div>
-      <div class="form-group"><label>Actual Total ($)</label><input type="number" id="complete-total" placeholder="1450" /></div>
-    </div>
-    <div class="form-group">
-      <label>Google Business Post</label>
-      <div class="warning-box">⚠️ No phone numbers or URLs — Google rejects those.</div>
-      <textarea id="complete-post" rows="4"></textarea>
-    </div>
-    <div class="info-box">
-      <strong>Claude will automatically:</strong><br>
-      ✓ Update tracker → Completed<br>
-      ✓ Draft thank-you email with Google review link<br>
-      ✓ Post to Google Business Profile
-    </div>
-    <button class="btn btn-success" onclick="submitComplete()" id="complete-btn">
-      ⚡ Complete Event — Do Everything
-    </button>
-    <div id="complete-status"></div>
-  </div>
-</div>
+<div class="modal-bg" id="m-complete"><div class="modal">
+<div class="modal-head"><div><div class="modal-title">✅ Mark Complete</div><div class="modal-sub" id="mc-name"></div></div><button class="close-btn" onclick="closeModal('m-complete')">✕</button></div>
+<div class="form-row"><div class="form-group"><label>Guests Served</label><input type="number" id="mc-guests" placeholder="130"/></div>
+<div class="form-group"><label>Actual Total ($)</label><input type="number" id="mc-total" placeholder="1450"/></div></div>
+<div class="form-group"><label>Google Business Post</label><div class="warn-box">⚠️ No phone numbers or URLs — Google rejects those.</div>
+<textarea id="mc-post" rows="4"></textarea></div>
+<div class="info-box"><strong>This will:</strong><br>✓ Update tracker → Completed<br>✓ Generate thank-you email text with review link<br>✓ Google Business post text</div>
+<button class="btn btn-green" onclick="submitComplete()" id="mc-btn">⚡ Complete Event</button>
+<div class="ai-msg" id="mc-msg"></div>
+</div></div>
 
 <!-- Post Modal -->
-<div class="modal-overlay hidden" id="post-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">📸 Post to Google Business</div>
-      <button class="close-btn" onclick="document.getElementById('post-modal').classList.add('hidden')">✕</button>
-    </div>
-    <div class="warning-box">⚠️ No phone numbers or URLs in text — Google rejects those.</div>
-    <button class="template-btn" onclick="setTemplate(0)">🌭 After an event</button>
-    <button class="template-btn" onclick="setTemplate(1)">🚚 Cart is open today</button>
-    <button class="template-btn" onclick="setTemplate(2)">⭐ Weekend special</button>
-    <button class="template-btn" onclick="setTemplate(3)">📣 Catering available</button>
-    <div class="form-group" style="margin-top:10px">
-      <label>Your Caption</label>
-      <textarea id="post-caption" rows="5" placeholder="Write your post or pick a template above..."></textarea>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px" id="char-count">0 characters</div>
-    </div>
-    <button class="btn btn-blue" onclick="submitPost()" id="post-btn">📸 Post to Google</button>
-    <div id="post-status"></div>
-  </div>
-</div>
+<div class="modal-bg" id="m-post"><div class="modal">
+<div class="modal-head"><div class="modal-title">📸 Post to Google Business</div><button class="close-btn" onclick="closeModal('m-post')">✕</button></div>
+<div class="warn-box">⚠️ No phone numbers or URLs — Google rejects those.</div>
+<button class="template-btn" onclick="setTpl(0)">🌭 After an event</button>
+<button class="template-btn" onclick="setTpl(1)">🚚 Cart is open today</button>
+<button class="template-btn" onclick="setTpl(2)">⭐ Weekend special</button>
+<button class="template-btn" onclick="setTpl(3)">📣 Catering available</button>
+<div class="form-group" style="margin-top:10px"><label>Your Caption</label>
+<textarea id="mp-cap" rows="5" placeholder="Write or pick a template..."></textarea>
+<div style="font-size:11px;color:var(--mut);margin-top:2px" id="mp-chars">0 chars</div></div>
+<button class="btn btn-blue" onclick="copyPost()" id="mp-btn">📋 Copy for Claude</button>
+<div class="ai-msg" id="mp-msg"></div>
+</div></div>
+
+<!-- Edit Event Modal -->
+<div class="modal-bg" id="m-edit"><div class="modal">
+<div class="modal-head"><div><div class="modal-title">✏️ Edit Event</div><div class="modal-sub" id="me-name"></div></div><button class="close-btn" onclick="closeModal('m-edit')">✕</button></div>
+<div class="form-group"><label>Status</label><select id="me-status"><option>Booked</option><option>Completed</option><option>Pending</option><option>Cancelled</option></select></div>
+<div class="form-row"><div class="form-group"><label>Guaranteed Min ($)</label><input id="me-gm" type="number"/></div>
+<div class="form-group"><label>Day-Of Total ($)</label><input id="me-total" type="number"/></div></div>
+<div class="form-group"><label>Notes</label><textarea id="me-notes" rows="3"></textarea></div>
+<button class="btn btn-pri" onclick="submitEdit()" id="me-btn">💾 Save Changes</button>
+<div class="ai-msg" id="me-msg"></div>
+</div></div>
 
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
-const SHEETS = {
-  events: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQgUgqmkTYLwq4_4XK2FKHpwvfofDmhH6wpaj7WuetfE8wTxfTKBtFDGB_ON_JmwPJAe68_tONiYUSD/pub?gid=1785733774&single=true&output=csv",
-  carts: "https://docs.google.com/spreadsheets/d/e/2PACX-1vTrZnnySyKl4YzGI59xAnFY7KG1uYJyiA-LPg_i3iFXZBGmD3k2lgFmaMIndYKy_SDIDFwd1pdxaTw9/pub?output=csv"
-};
-const REVIEW = "https://g.page/r/CSQ9PypyuJxxEBM/review";
-const SHEET_ID = "11Mj-oAGjsYblijfD52ua6XV89iWd660T6_AD8U08YTU";
-const WORKSHEET = "1785733774";
-const TEMPLATES = [
-  `Another incredible event in the books! 🌭 Thank you to everyone who came out — we love what we do and it shows in every dog we serve. See you at the next one! #RandomEatz #Spokane #FoodTruck #CateringSpokane`,
-  `We're OPEN today! 🌭 Come grab one of our signature grass-fed all-beef hotdogs and a fresh fruit purée lemonade. Find us at Lowe's Broadway, Spokane Valley — Thursday through Monday! #RandomEatz #SpokaneFood`,
-  `It's the weekend and we're serving something delicious! 🌭 Try our specialty dogs — Seattle style, Chili Cheese, Brisket Dog and more. Come find us! #RandomEatz #SpokaneEats #FoodTruck`,
-  `Did you know Random Eatz & Catering is available for your next event? 🌭 Weddings, corporate events, school events, concerts — we do it all. Our grass-fed all-beef dogs and fresh lemonades are a crowd favorite! #RandomEatz #CateringSpokane`
+var EVENTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQgUgqmkTYLwq4_4XK2FKHpwvfofDmhH6wpaj7WuetfE8wTxfTKBtFDGB_ON_JmwPJAe68_tONiYUSD/pub?gid=1785733774&single=true&output=csv";
+var CARTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vTrZnnySyKl4YzGI59xAnFY7KG1uYJyiA-LPg_i3iFXZBGmD3k2lgFmaMIndYKy_SDIDFwd1pdxaTw9/pub?output=csv";
+var SPECIALS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vTa078dWgxNS-Z8CkKHUypVZcQcr0qOPcy-WzSaZpOdh3cigdp4p3JnC2UDjcl5wRpmKW6s_ddvgaop/pub?output=csv";
+var REVIEW="https://g.page/r/CSQ9PypyuJxxEBM/review";
+// IMPORTANT: After deploying Apps Script, paste the web app URL here:
+var API_URL="https://script.google.com/macros/s/AKfycbyALZgZlQFTOmpSPrv8VmEagw1LPbVm5vCygPjEKNJgn7nrfWchTQCNQjthmqOlwNrUvA/exec"; // ← Paste your Apps Script web app URL here
+
+var TPLS=[
+"Another incredible event in the books! 🌭 Thank you to everyone who came out — we love what we do! #RandomEatz #Spokane #FoodTruck #CateringSpokane",
+"We're OPEN today! 🌭 Come grab one of our signature grass-fed all-beef hotdogs and a fresh fruit purée lemonade at Lowe's Broadway, Spokane Valley! #RandomEatz #SpokaneFood",
+"It's the weekend and we're serving something delicious! 🌭 Try our specialty dogs — Seattle style, Chili Cheese, Brisket Dog and more! #RandomEatz #SpokaneEats",
+"Random Eatz & Catering is available for your next event! 🌭 Weddings, corporate, schools, concerts — our grass-fed dogs and fresh lemonades are a crowd favorite! #RandomEatz #CateringSpokane"
 ];
 
 // ── STATE ─────────────────────────────────────────────────────────────────────
-let allEvents = [], cartStatus = [], currentTab = 'dashboard', currentFilter = 'upcoming', activeCompleteEvent = null;
+var events=[],carts=[],specials=[],curTab='dash',curFilter='upcoming',activeEvent=null;
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
-function daysUntil(d) {
-  if (!d) return Infinity;
-  const date = new Date(d); if (isNaN(date)) return Infinity;
-  const now = new Date(); now.setHours(0,0,0,0); date.setHours(0,0,0,0);
-  return Math.ceil((date - now) / 86400000);
-}
-function fmtDate(d) {
-  if (!d) return ""; const date = new Date(d); if (isNaN(date)) return d;
-  return date.toLocaleDateString("en-US", { weekday:"short", month:"short", day:"numeric" });
-}
-function statusBadge(s) {
-  const map = { completed:"badge-completed", booked:"badge-booked", pending:"badge-pending" };
-  const cls = map[(s||"").toLowerCase()] || "";
-  const labels = { completed:"Completed", booked:"Booked", pending:"Pending", cancelled:"Cancelled" };
-  return `<span class="badge ${cls}">${labels[(s||"").toLowerCase()] || s || "Unknown"}</span>`;
-}
-function setAIStatus(elId, type, msg) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  el.className = `ai-status ${type}`;
-  el.textContent = msg;
-  el.style.display = msg ? "block" : "none";
+function daysUntil(d){if(!d)return Infinity;var dt=new Date(d);if(isNaN(dt))return Infinity;var n=new Date();n.setHours(0,0,0,0);dt.setHours(0,0,0,0);return Math.ceil((dt-n)/864e5)}
+function fmtDate(d){if(!d)return"";var dt=new Date(d);if(isNaN(dt))return d;return dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
+function badge(s){var m={completed:["b-done","Completed"],booked:["b-booked","Booked"],pending:["b-booked","Pending"]};var r=m[(s||"").toLowerCase()]||["","Unknown"];return'<span class="badge '+r[0]+'">'+(r[1]||s)+'</span>'}
+function showMsg(id,cls,txt){var e=document.getElementById(id);e.className='ai-msg '+cls;e.textContent=txt;e.style.display='block'}
+function closeModal(id){document.getElementById(id).classList.remove('open');activeEvent=null}
+
+// ── API CALL ──────────────────────────────────────────────────────────────────
+async function apiCall(data){
+  if(!API_URL){return{success:false,message:'API not connected yet. Set API_URL in app.html.'};}
+  try{
+    var r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(data),mode:'no-cors'});
+    // no-cors means we can't read response, but request goes through
+    return{success:true,message:'Update sent! Refresh in a few seconds to see changes.'};
+  }catch(e){return{success:false,message:e.toString()};}
 }
 
-// ── DATA LOADING ──────────────────────────────────────────────────────────────
-async function loadData() {
-  document.getElementById('refresh-icon').classList.add('spin');
-  document.getElementById('refresh-label').textContent = 'Loading';
-  try {
-    const [evRes, cartRes] = await Promise.all([
-      fetch(SHEETS.events).then(r=>r.text()).catch(()=>""),
-      fetch(SHEETS.carts).then(r=>r.text()).catch(()=>"")
-    ]);
-    if (evRes) allEvents = Papa.parse(evRes.trim(), { header:true, skipEmptyLines:true }).data || [];
-    if (cartRes) cartStatus = Papa.parse(cartRes.trim(), { header:true, skipEmptyLines:true }).data || [];
-    const now = new Date().toLocaleTimeString();
-    document.getElementById('status-bar').textContent = `Updated ${now} · ${allEvents.length} events`;
-  } catch(e) {
-    document.getElementById('status-bar').textContent = 'Load error — check connection';
-  }
-  document.getElementById('refresh-icon').classList.remove('spin');
-  document.getElementById('refresh-label').textContent = 'Refresh';
-  renderCurrentTab();
+// ── DATA ──────────────────────────────────────────────────────────────────────
+async function loadData(){
+  document.getElementById('ri').classList.add('spin');
+  document.getElementById('rl').textContent='Loading';
+  var r={events:[],carts:[],specials:[]};
+  await Promise.all([
+    fetch(EVENTS_CSV).then(function(x){return x.text()}).then(function(t){r.events=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){}),
+    fetch(CARTS_CSV).then(function(x){return x.text()}).then(function(t){r.carts=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){}),
+    fetch(SPECIALS_CSV).then(function(x){return x.text()}).then(function(t){r.specials=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){})
+  ]);
+  events=r.events;carts=r.carts;specials=r.specials;
+  document.getElementById('sbar').textContent='Updated '+new Date().toLocaleTimeString()+' · '+events.length+' events · '+carts.length+' carts · '+specials.length+' specials';
+  document.getElementById('ri').classList.remove('spin');
+  document.getElementById('rl').textContent='Refresh';
+  renderTab();
 }
 
-// ── NAVIGATION ────────────────────────────────────────────────────────────────
-function showTab(tab) {
-  currentTab = tab;
-  ['dashboard','events','carts','book'].forEach(t => {
-    document.getElementById(`view-${t}`).classList.toggle('hidden', t !== tab);
-    document.getElementById(`nav-${t}`).classList.toggle('active', t === tab);
-  });
-  renderCurrentTab();
-}
-function renderCurrentTab() {
-  if (currentTab === 'dashboard') renderDashboard();
-  else if (currentTab === 'events') renderEvents();
-  else if (currentTab === 'carts') renderCarts();
-  else if (currentTab === 'book') renderBook();
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function showTab(t){curTab=t;['dash','events','ops','book'].forEach(function(x){
+  document.getElementById('v-'+x).classList.toggle('hidden',x!==t);
+  document.getElementById('n-'+x).classList.toggle('active',x===t);
+});renderTab()}
+function renderTab(){
+  if(curTab==='dash')renderDash();
+  else if(curTab==='events')renderEvents();
+  else if(curTab==='ops')renderOps();
+  else if(curTab==='book')renderBook();
 }
 
 // ── DASHBOARD ─────────────────────────────────────────────────────────────────
-function renderDashboard() {
-  const upcoming = allEvents.filter(e => daysUntil(e["Event Date"]) >= 0 && (e.Status||"").toLowerCase() !== "cancelled").sort((a,b) => new Date(a["Event Date"]) - new Date(b["Event Date"]));
-  const next7 = upcoming.filter(e => daysUntil(e["Event Date"]) <= 7);
-  const completed = allEvents.filter(e => (e.Status||"").toLowerCase() === "completed");
-  const revenue = allEvents.reduce((s,e) => s + (Number(e["Day-Of Total (actual)"])||0), 0);
-  const outstanding = allEvents.reduce((s,e) => s + (Number(e["Remainder Owed"])||0), 0);
-
-  let html = `<div class="stat-grid">
-    <div class="stat-card"><div class="stat-label">📅 Upcoming</div><div class="stat-value">${upcoming.length}</div><div class="stat-sub">${next7.length} this week</div></div>
-    <div class="stat-card"><div class="stat-label">✅ Completed</div><div class="stat-value">${completed.length}</div><div class="stat-sub">events served</div></div>
-    <div class="stat-card"><div class="stat-label">💵 Revenue</div><div class="stat-value">$${revenue.toLocaleString()}</div><div class="stat-sub">day-of total</div></div>
-    ${outstanding > 0 ? `<div class="stat-card"><div class="stat-label">⚠️ Owed</div><div class="stat-value" style="color:var(--danger)">$${outstanding.toLocaleString()}</div><div class="stat-sub">outstanding</div></div>` : ""}
-  </div>`;
-
-  html += `<button class="btn btn-blue" style="margin-bottom:14px" onclick="document.getElementById('post-modal').classList.remove('hidden')">📸 Post to Google Business</button>`;
-
-  if (next7.length > 0) {
-    html += `<div class="section-header">This Week</div>`;
-    next7.forEach((e,i) => { html += renderEventCard(e, i, true); });
-  }
-
-  if (cartStatus.length > 0) {
-    html += `<div class="section-header" style="margin-top:16px">Cart Status</div><div class="cart-grid">`;
-    cartStatus.forEach(cart => {
-      const vals = Object.values(cart);
-      const name = vals[0] || "Cart";
-      const status = vals[1] || "Unknown";
-      const open = status.toLowerCase().includes("open");
-      html += `<div class="cart-card ${open ? 'open' : 'closed'}"><div class="cart-name">🚚 ${name}</div><div class="cart-status">${status}</div></div>`;
-    });
-    html += `</div>`;
-  }
-
-  const rest = upcoming.slice(next7.length);
-  if (rest.length > 0) {
-    html += `<div class="section-header" style="margin-top:16px">Coming Up</div>`;
-    rest.forEach((e,i) => { html += renderEventCard(e, i+next7.length, true); });
-  }
-
-  document.getElementById('view-dashboard').innerHTML = html;
+function renderDash(){
+  var up=events.filter(function(e){return daysUntil(e["Event Date"])>=0&&(e.Status||"").toLowerCase()!=="cancelled"}).sort(function(a,b){return new Date(a["Event Date"])-new Date(b["Event Date"])});
+  var w7=up.filter(function(e){return daysUntil(e["Event Date"])<=7});
+  var done=events.filter(function(e){return(e.Status||"").toLowerCase()==="completed"});
+  var rev=events.reduce(function(s,e){return s+(Number(e["Day-Of Total (actual)"])||0)},0);
+  var owed=events.reduce(function(s,e){return s+(Number(e["Remainder Owed"])||0)},0);
+  var h='<div class="stat-grid">';
+  h+='<div class="stat-card"><div class="stat-label">📅 Upcoming</div><div class="stat-value">'+up.length+'</div><div class="stat-sub">'+w7.length+' this week</div></div>';
+  h+='<div class="stat-card"><div class="stat-label">✅ Completed</div><div class="stat-value">'+done.length+'</div><div class="stat-sub">events</div></div>';
+  h+='<div class="stat-card"><div class="stat-label">💵 Revenue</div><div class="stat-value">$'+rev.toLocaleString()+'</div><div class="stat-sub">day-of</div></div>';
+  if(owed>0)h+='<div class="stat-card"><div class="stat-label">⚠️ Owed</div><div class="stat-value" style="color:var(--red)">$'+owed.toLocaleString()+'</div><div class="stat-sub">outstanding</div></div>';
+  h+='</div>';
+  h+='<button class="btn btn-blue" style="margin-bottom:14px" onclick="document.getElementById(\'m-post\').classList.add(\'open\')">📸 Post to Google Business</button>';
+  if(w7.length>0){h+='<div class="section-header">This Week</div>';w7.forEach(function(e,i){h+=eCard(e,i,true)});}
+  // Quick cart status on dashboard
+  if(carts.length>0){
+    h+='<div class="section-header">Cart Status</div><div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">';
+    carts.forEach(function(c){var v=Object.values(c);var nm=v[0]||"Cart";var st=v[1]||"?";var op=st.toLowerCase().includes("open");
+      h+='<div style="background:'+(op?'var(--greenL)':'var(--bg)')+';border:1px solid '+(op?'var(--green)':'var(--brd)')+';border-radius:10px;padding:10px 14px;flex:1 1 140px;min-width:140px"><div style="font-weight:600;font-size:14px">🚚 '+nm+'</div><div style="font-size:13px;font-weight:600;color:'+(op?'var(--green)':'var(--mut)')+';margin-top:4px">'+st+'</div></div>';
+    });h+='</div>';}
+  if(up.length>w7.length){h+='<div class="section-header">Coming Up</div>';up.slice(w7.length).forEach(function(e,i){h+=eCard(e,i+w7.length,true)});}
+  document.getElementById('v-dash').innerHTML=h;
 }
-
-// ── EVENTS ────────────────────────────────────────────────────────────────────
-function renderEvents() {
-  const filters = [["upcoming","Upcoming"],["booked","Booked"],["completed","Done"],["all","All"]];
-  let html = `<div class="filters">`;
-  filters.forEach(([k,l]) => { html += `<button class="filter-btn ${currentFilter===k?'active':''}" onclick="setFilter('${k}')">${l}</button>`; });
-  html += `</div>`;
-
-  let sorted = [...allEvents].sort((a,b) => new Date(b["Event Date"]) - new Date(a["Event Date"]));
-  let filtered;
-  if (currentFilter === "all") filtered = sorted;
-  else if (currentFilter === "upcoming") filtered = sorted.filter(e => daysUntil(e["Event Date"]) >= 0).reverse();
-  else filtered = sorted.filter(e => (e.Status||"").toLowerCase() === currentFilter);
-
-  if (filtered.length === 0) html += `<div style="text-align:center;padding:40px;color:var(--muted)">No events here</div>`;
-  else filtered.forEach((e,i) => { html += renderEventCard(e, i, false); });
-
-  document.getElementById('view-events').innerHTML = html;
-}
-function setFilter(f) { currentFilter = f; renderEvents(); }
 
 // ── EVENT CARD ────────────────────────────────────────────────────────────────
-function renderEventCard(e, idx, compact) {
-  const days = daysUntil(e["Event Date"]);
-  const isPast = days < 0;
-  const isToday = days === 0;
-  const isSoon = days >= 1 && days <= 3;
-  const isBooked = (e.Status||"").toLowerCase() === "booked";
-  const isCompleted = (e.Status||"").toLowerCase() === "completed";
-  const borderColor = isPast && isCompleted ? "#9CA3AF" : isToday ? "#C8102E" : isSoon ? "#F5A623" : "#2D8A4E";
-
-  let todayBadge = isToday ? `<span class="badge-today">TODAY</span>` : (isSoon && !isToday ? `<span class="badge-soon">${days}d</span>` : "");
-
-  let financials = "";
-  if (!compact) {
-    if (e["Guaranteed Min"]) financials += `<span><strong>GM:</strong> $${e["Guaranteed Min"]}</span> `;
-    if (e["Day-Of Total (actual)"]) financials += `<span><strong>Actual:</strong> $${e["Day-Of Total (actual)"]}</span> `;
-    if (Number(e["Remainder Owed"]) > 0) financials += `<span style="color:var(--danger);font-weight:700">💰 Owes: $${e["Remainder Owed"]}</span>`;
+function eCard(e,idx,compact){
+  var d=daysUntil(e["Event Date"]),past=d<0,today=d===0,soon=d>=1&&d<=3;
+  var booked=(e.Status||"").toLowerCase()==="booked",done=(e.Status||"").toLowerCase()==="completed";
+  var bc=past&&done?"#9CA3AF":today?"#C8102E":soon?"#F5A623":"#2D8A4E";
+  var tb=today?'<span class="b-today">TODAY</span>':(soon?'<span class="b-soon">'+d+'d</span>':'');
+  var fin='';
+  if(!compact){
+    if(e["Guaranteed Min"])fin+='<span><strong>GM:</strong> $'+e["Guaranteed Min"]+'</span> ';
+    if(e["Day-Of Total (actual)"])fin+='<span><strong>Actual:</strong> $'+e["Day-Of Total (actual)"]+'</span> ';
+    if(Number(e["Remainder Owed"])>0)fin+='<span style="color:var(--red);font-weight:700">💰 $'+e["Remainder Owed"]+'</span>';
   }
-
-  let expandedContent = "";
-  if (!compact) {
-    let actions = "";
-    if (isBooked) actions += `<button class="btn-complete" onclick='openCompleteModal(${JSON.stringify(e).replace(/'/g, "&#39;")})'>⚡ Mark Complete</button>`;
-    if (e["Contact Email"]) actions += `<a class="btn-email" href="mailto:${e["Contact Email"]}">✉️ Email</a>`;
-
-    expandedContent = `<div class="event-expanded" id="expanded-${idx}">
-      ${e["Contact Email"] ? `<div style="font-size:13px;color:var(--muted);margin-bottom:4px">📧 ${e["Contact Email"]}</div>` : ""}
-      ${e.Source ? `<div style="font-size:13px;color:var(--muted);margin-bottom:8px">📍 Via: ${e.Source}</div>` : ""}
-      ${e.Notes ? `<div class="event-notes">${e.Notes}</div>` : ""}
-      <div class="event-actions">${actions}</div>
-    </div>`;
+  var ej=JSON.stringify(e).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+  var det='';
+  if(!compact){
+    var acts='';
+    if(booked)acts+='<button class="btn-sm btn-green" onclick="openComplete('+ej+')">⚡ Complete</button>';
+    acts+='<button class="btn-sm btn-outline" onclick="openEdit('+ej+')">✏️ Edit</button>';
+    if(e["Contact Email"])acts+='<a class="btn-sm btn-outline" href="mailto:'+e["Contact Email"]+'" style="text-decoration:none">✉️ Email</a>';
+    det='<div class="event-detail" id="ed-'+idx+'">'+(e["Contact Email"]?'<div style="font-size:13px;color:var(--mut);margin-bottom:4px">📧 '+e["Contact Email"]+'</div>':'')
+      +(e.Source?'<div style="font-size:13px;color:var(--mut);margin-bottom:8px">📍 '+e.Source+'</div>':'')
+      +(e.Notes?'<div class="event-notes">'+e.Notes+'</div>':'')
+      +'<div class="event-actions">'+acts+'</div></div>';
   }
-
-  return `<div class="event-card" style="border-left:4px solid ${borderColor};opacity:${isPast&&isCompleted?0.7:1}">
-    <div class="event-card-inner">
-      <div class="row-between">
-        <div style="flex:1;min-width:0">
-          <div class="event-name">${e["Event Name"] || "Untitled"}</div>
-          <div class="event-meta">
-            <span>📅 ${fmtDate(e["Event Date"])}${todayBadge}</span>
-            ${e["Contact Name"] ? `<span>👤 ${e["Contact Name"]}</span>` : ""}
-          </div>
-          ${financials ? `<div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);margin-top:6px">${financials}</div>` : ""}
-        </div>
-        <div style="display:flex;align-items:center;gap:6px">
-          ${statusBadge(e.Status)}
-          ${!compact ? `<button class="chevron-btn" onclick="toggleExpand(${idx})">▼</button>` : ""}
-        </div>
-      </div>
-    </div>
-    ${expandedContent}
-  </div>`;
+  return'<div class="event-card" style="border-left:4px solid '+bc+';opacity:'+(past&&done?.7:1)+'"><div class="event-inner"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div style="flex:1;min-width:0"><div class="event-name">'+(e["Event Name"]||"Untitled")+'</div><div class="event-meta"><span>📅 '+fmtDate(e["Event Date"])+tb+'</span>'+(e["Contact Name"]?'<span>👤 '+e["Contact Name"]+'</span>':'')+'</div>'+(fin?'<div style="display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--mut);margin-top:6px">'+fin+'</div>':'')+'</div><div style="display:flex;align-items:center;gap:6px">'+badge(e.Status)+(!compact?'<button style="background:none;border:none;cursor:pointer;padding:4px;color:var(--mut);font-size:16px" onclick="toggleDet('+idx+')">▼</button>':'')+'</div></div></div>'+det+'</div>';
 }
-function toggleExpand(idx) {
-  const el = document.getElementById(`expanded-${idx}`);
-  if (!el) return;
-  el.classList.toggle("open");
-  const btn = el.previousElementSibling?.querySelector(".chevron-btn");
-  if (btn) btn.textContent = el.classList.contains("open") ? "▲" : "▼";
+function toggleDet(i){var e=document.getElementById('ed-'+i);if(e)e.classList.toggle('open')}
+
+// ── EVENTS VIEW ───────────────────────────────────────────────────────────────
+function renderEvents(){
+  var h='<div class="filters">';
+  [["upcoming","Upcoming"],["booked","Booked"],["completed","Done"],["all","All"]].forEach(function(f){
+    h+='<button class="fbtn'+(curFilter===f[0]?' active':'')+'" onclick="curFilter=\''+f[0]+'\';renderEvents()">'+f[1]+'</button>';
+  });h+='</div>';
+  var s=[].concat(events).sort(function(a,b){return new Date(b["Event Date"])-new Date(a["Event Date"])});
+  var f=curFilter==='all'?s:curFilter==='upcoming'?s.filter(function(e){return daysUntil(e["Event Date"])>=0}).reverse():s.filter(function(e){return(e.Status||"").toLowerCase()===curFilter});
+  if(!f.length)h+='<div style="text-align:center;padding:40px;color:var(--mut)">No events</div>';
+  else f.forEach(function(e,i){h+=eCard(e,i,false)});
+  document.getElementById('v-events').innerHTML=h;
 }
 
-// ── CARTS ─────────────────────────────────────────────────────────────────────
-function renderCarts() {
-  if (!cartStatus.length) { document.getElementById('view-carts').innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted)">No cart data</div>`; return; }
-  const headers = Object.keys(cartStatus[0]);
-  let html = `<p style="font-size:13px;color:var(--muted);margin-bottom:14px">Live from your Cart Status sheet. Edit the sheet to update — website updates automatically.</p><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr>`;
-  headers.forEach(h => { html += `<th style="text-align:left;padding:10px 12px;border-bottom:2px solid var(--border);color:var(--muted);font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">${h}</th>`; });
-  html += `</tr></thead><tbody>`;
-  cartStatus.forEach((row,i) => {
-    html += `<tr style="background:${i%2===0?'var(--bg)':'var(--card)'}">`;
-    headers.forEach(h => {
-      const val = row[h] || "";
-      const isSt = h.toLowerCase().includes("status");
-      const isOpen = val.toLowerCase().includes("open");
-      html += `<td style="padding:10px 12px;border-bottom:1px solid var(--border-light);font-weight:${isSt?700:400};color:${isSt?(isOpen?'var(--success)':'var(--muted)'):'var(--text)'}">${val}</td>`;
-    });
-    html += `</tr>`;
+// ── OPS VIEW (Carts + Specials) ───────────────────────────────────────────────
+function renderOps(){
+  var h='<div class="section-header" style="margin-top:0">🚚 Cart Status</div>';
+  if(!carts.length)h+='<div style="padding:20px;color:var(--mut)">No cart data</div>';
+  else carts.forEach(function(c,i){
+    var v=Object.values(c);var nm=v[0]||"Cart";var st=v[1]||"closed";var op=st.toLowerCase()==="open";
+    h+='<div class="toggle-row"><div class="toggle-info"><div class="toggle-label">🚚 '+nm+'</div><div class="toggle-sub" id="cart-st-'+i+'">'+(op?'Open — serving customers':'Closed')+'</div></div>'
+      +'<label class="toggle"><input type="checkbox" '+(op?'checked':'')+' onchange="toggleCart(\''+nm.replace(/'/g,"\\'")+'\',this.checked,'+i+')"><span class="slider"></span></label></div>';
   });
-  html += `</tbody></table></div>`;
-  document.getElementById('view-carts').innerHTML = html;
+
+  h+='<div class="section-header">🌭 Daily Specials</div>';
+  if(!specials.length)h+='<div style="padding:20px;color:var(--mut)">No specials data</div>';
+  else specials.forEach(function(s,i){
+    var name=s.Specialty||s.specialty||Object.values(s)[1]||"Special";
+    var serving=(s["Now Serving"]||s.now_serving||Object.values(s)[2]||"no").toLowerCase();
+    var on=serving==="yes";
+    h+='<div class="toggle-row"><div class="toggle-info"><div class="toggle-label">'+name+'</div><div class="toggle-sub" id="spec-st-'+i+'">'+(on?'Now serving ✓':'Not serving today')+'</div></div>'
+      +'<label class="toggle"><input type="checkbox" '+(on?'checked':'')+' onchange="toggleSpecial(\''+name.replace(/'/g,"\\'")+'\',this.checked,'+i+')"><span class="slider"></span></label></div>';
+  });
+
+  h+='<div class="ai-msg" id="ops-msg"></div>';
+  document.getElementById('v-ops').innerHTML=h;
 }
 
-// ── BOOKING FORM ──────────────────────────────────────────────────────────────
-function renderBook() {
-  document.getElementById('view-book').innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:linear-gradient(135deg,#C8102E,#9B0D23);border-radius:10px;margin-bottom:16px">
-      <span style="font-size:20px">⚡</span>
-      <div><div style="color:#fff;font-weight:700;font-size:14px">AI-Powered Booking</div><div style="color:rgba(255,255,255,0.8);font-size:12px">Fills tracker, QB invoice, and calendar automatically</div></div>
-    </div>
-    <div class="form-group"><label>Event Name *</label><input id="b-name" placeholder="e.g. Johnson Wedding" /></div>
-    <div class="form-row">
-      <div class="form-group"><label>Contact Name *</label><input id="b-contact" placeholder="Full name" /></div>
-      <div class="form-group"><label>Email</label><input id="b-email" type="email" /></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Phone</label><input id="b-phone" type="tel" /></div>
-      <div class="form-group"><label>Event Date *</label><input id="b-date" type="date" /></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Start Time</label><input id="b-start" type="time" /></div>
-      <div class="form-group"><label>End Time</label><input id="b-end" type="time" /></div>
-      <div class="form-group"><label>Guests</label><input id="b-guests" type="number" placeholder="~100" /></div>
-    </div>
-    <div class="form-group"><label>Location / Venue</label><input id="b-location" placeholder="Full address" /></div>
-    <div class="form-row">
-      <div class="form-group"><label>Guaranteed Min ($)</label><input id="b-gm" type="number" placeholder="600" oninput="updateDepositPreview()" /></div>
-      <div class="form-group"><label>Source</label><select id="b-source">
-        <option>Greater Spokane Food Truck Association</option>
-        <option>Website inquiry</option><option>Phone call</option><option>In-person</option>
-        <option>Referral</option><option>Social media</option><option>Repeat client</option><option>Other</option>
-      </select></div>
-    </div>
-    <div class="form-group"><label>Menu Notes</label><input id="b-menu" placeholder="e.g. Mix of dogs + strawberry lemonades" /></div>
-    <div class="form-group"><label>Additional Notes</label><textarea id="b-notes"></textarea></div>
-    <div class="deposit-preview hidden" id="deposit-preview"></div>
-    <button class="btn btn-primary" onclick="submitBooking()" id="book-btn">⚡ Book It — Automate Everything</button>
-    <div id="book-status" style="display:none"></div>
-  `;
+async function toggleCart(location,checked,idx){
+  var status=checked?'open':'closed';
+  document.getElementById('cart-st-'+idx).textContent=checked?'Updating...':'Updating...';
+  var r=await apiCall({action:'updateCart',location:location,status:status});
+  document.getElementById('cart-st-'+idx).textContent=checked?'Open — serving customers':'Closed';
+  if(r.success)showMsg('ops-msg','ok','✅ '+location+' → '+status);
+  else showMsg('ops-msg','err','⚠️ '+r.message+' — Update the Google Sheet directly for now.');
+  setTimeout(function(){document.getElementById('ops-msg').style.display='none'},3000);
 }
 
-function updateDepositPreview() {
-  const gm = Number(document.getElementById('b-gm')?.value || 0);
-  const el = document.getElementById('deposit-preview');
-  if (gm > 0 && el) {
-    el.classList.remove('hidden');
-    el.innerHTML = `💰 30% deposit = <strong>$${Math.round(gm*0.3)}</strong> · Balance = <strong>$${Math.round(gm*0.7)}</strong>`;
-  } else if (el) { el.classList.add('hidden'); }
+async function toggleSpecial(name,checked,idx){
+  var serving=checked?'Yes':'No';
+  document.getElementById('spec-st-'+idx).textContent=checked?'Updating...':'Updating...';
+  var r=await apiCall({action:'updateSpecial',specialty:name,serving:serving});
+  document.getElementById('spec-st-'+idx).textContent=checked?'Now serving ✓':'Not serving today';
+  if(r.success)showMsg('ops-msg','ok','✅ '+name+' → '+(checked?'Now Serving':'Off'));
+  else showMsg('ops-msg','err','⚠️ '+r.message);
+  setTimeout(function(){document.getElementById('ops-msg').style.display='none'},3000);
 }
 
-async function submitBooking() {
-  const name = document.getElementById('b-name')?.value?.trim();
-  const contact = document.getElementById('b-contact')?.value?.trim();
-  const date = document.getElementById('b-date')?.value;
-  if (!name || !contact || !date) { setAIStatus('book-status','error','Event name, contact name, and date are required.'); document.getElementById('book-status').style.display='block'; return; }
-
-  const gm = document.getElementById('b-gm')?.value || "0";
-  const dep = Math.round(Number(gm) * 0.3);
-  const d = new Date(date); d.setMonth(d.getMonth()+10);
-  const followUp = d.toLocaleDateString("en-US");
-
-  const btn = document.getElementById('book-btn');
-  btn.disabled = true; btn.textContent = '⏳ Claude is working...';
-  setAIStatus('book-status','thinking','Adding to your tracker, creating QB invoice, and scheduling calendar event...'); 
-  document.getElementById('book-status').style.display='block';
-
-  const summary = buildBookingSummary({ name, contact, date, dep, followUp, gm });
-
-  try {
-    const result = await callClaude(buildBookingSystem(), summary);
-    setAIStatus('book-status','success','✅ Booking complete!\n\n' + result);
-    setTimeout(loadData, 2000);
-    // Reset form
-    ['b-name','b-contact','b-email','b-phone','b-date','b-start','b-end','b-guests','b-location','b-gm','b-menu','b-notes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
-    document.getElementById('deposit-preview')?.classList.add('hidden');
-  } catch(err) {
-    setAIStatus('book-status','error','Error: ' + err.message + '\n\nTip: Tell Claude in chat to add this booking instead.');
-  }
-  btn.disabled = false; btn.textContent = '⚡ Book It — Automate Everything';
+// ── BOOK VIEW ─────────────────────────────────────────────────────────────────
+function renderBook(){
+  document.getElementById('v-book').innerHTML=
+  '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:linear-gradient(135deg,#C8102E,#9B0D23);border-radius:10px;margin-bottom:16px"><span style="font-size:20px">⚡</span><div><div style="color:#fff;font-weight:700;font-size:14px">New Booking</div><div style="color:rgba(255,255,255,.8);font-size:12px">Fill in details, copy summary for Claude</div></div></div>'
+  +'<div class="form-group"><label>Event Name *</label><input id="b-name" placeholder="e.g. Johnson Wedding"/></div>'
+  +'<div class="form-row"><div class="form-group"><label>Contact *</label><input id="b-contact"/></div><div class="form-group"><label>Email</label><input id="b-email" type="email"/></div></div>'
+  +'<div class="form-row"><div class="form-group"><label>Phone</label><input id="b-phone" type="tel"/></div><div class="form-group"><label>Date *</label><input id="b-date" type="date"/></div></div>'
+  +'<div class="form-row"><div class="form-group"><label>Start</label><input id="b-start" type="time"/></div><div class="form-group"><label>End</label><input id="b-end" type="time"/></div><div class="form-group"><label>Guests</label><input id="b-guests" type="number" placeholder="~100"/></div></div>'
+  +'<div class="form-group"><label>Location</label><input id="b-loc" placeholder="Venue and address"/></div>'
+  +'<div class="form-row"><div class="form-group"><label>Guaranteed Min ($)</label><input id="b-gm" type="number" placeholder="600" oninput="updDep()"/></div>'
+  +'<div class="form-group"><label>Source</label><select id="b-src"><option>Greater Spokane Food Truck Association</option><option>Website</option><option>Phone call</option><option>In-person</option><option>Referral</option><option>Social media</option><option>Repeat client</option><option>Other</option></select></div></div>'
+  +'<div class="form-group"><label>Menu Notes</label><input id="b-menu" placeholder="e.g. Mix of dogs + lemonades"/></div>'
+  +'<div class="form-group"><label>Notes</label><textarea id="b-notes"></textarea></div>'
+  +'<div class="deposit-preview hidden" id="b-dep"></div>'
+  +'<button class="btn btn-pri" onclick="genBooking()">📋 Generate Booking Summary</button>'
+  +'<div class="ai-msg" id="b-msg"></div>';
 }
-
-function buildBookingSummary(f) {
-  const email = document.getElementById('b-email')?.value?.trim() || "";
-  const phone = document.getElementById('b-phone')?.value?.trim() || "";
-  const start = document.getElementById('b-start')?.value || "";
-  const end = document.getElementById('b-end')?.value || "";
-  const guests = document.getElementById('b-guests')?.value || "";
-  const location = document.getElementById('b-location')?.value?.trim() || "";
-  const source = document.getElementById('b-source')?.value || "";
-  const menu = document.getElementById('b-menu')?.value?.trim() || "";
-  const notes = document.getElementById('b-notes')?.value?.trim() || "";
-  return `New booking:
-Event: ${f.name}
-Contact: ${f.contact}${email ? " | " + email : ""}${phone ? " | " + phone : ""}
-Date: ${f.date}${start ? " | Service: " + start + "–" + end : ""}
-Location: ${location || "TBD"}
-Guests: ~${guests || "TBD"}
-Guaranteed Minimum: $${f.gm}
-30% Deposit: $${f.dep}
-Menu: ${menu || "Standard menu"}
-Source: ${source}
-Notes: ${notes || "None"}
-10-month follow-up date: ${f.followUp}
-
-Please complete all 3 steps: add to tracker (Sheet ID: ${SHEET_ID}, worksheet: ${WORKSHEET}), create QB deposit invoice, and add Outlook calendar event in yellow.`;
-}
-
-function buildBookingSystem() {
-  return `You are the booking automation for Random Eatz & Catering, Spokane Valley WA (David Morgan, owner).
-When given a new booking, complete ALL 3 steps:
-1. Add row to Google Sheet ${SHEET_ID}, worksheet ${WORKSHEET}: COL$A=Event Name, COL$B=Contact, COL$C=Email, COL$D=Date, COL$E="Booked", COL$H=GM, COL$J=Remainder, COL$K="No", COL$M="https://g.page/r/CSQ9PypyuJxxEBM/review", COL$N=Follow-up date, COL$O="No", COL$P=Notes, COL$Q=Source
-2. Search/create QB customer, create deposit invoice using product ID 32 (Catering Deposit Non-Refundable), non-taxable, due 10 days before event
-3. Create Outlook calendar event with Yellow category, arrive 45 min early, all details in body
-Respond with brief summary of what was done.`;
+function updDep(){var g=Number(document.getElementById('b-gm').value||0),e=document.getElementById('b-dep');if(g>0){e.classList.remove('hidden');e.innerHTML='💰 30% deposit = <strong>$'+Math.round(g*.3)+'</strong> · Balance = <strong>$'+Math.round(g*.7)+'</strong>'}else e.classList.add('hidden')}
+function genBooking(){
+  var n=document.getElementById('b-name').value.trim(),c=document.getElementById('b-contact').value.trim(),d=document.getElementById('b-date').value;
+  if(!n||!c||!d){showMsg('b-msg','err','Event name, contact, and date required.');return}
+  var gm=document.getElementById('b-gm').value||"0",dep=Math.round(Number(gm)*.3);
+  var s='New booking: '+n+'\nContact: '+c;
+  var em=document.getElementById('b-email').value.trim();if(em)s+=' | '+em;
+  var ph=document.getElementById('b-phone').value.trim();if(ph)s+=' | '+ph;
+  s+='\nDate: '+d;
+  var st=document.getElementById('b-start').value,en=document.getElementById('b-end').value;
+  if(st&&en)s+=' | '+st+'–'+en;
+  var loc=document.getElementById('b-loc').value.trim();if(loc)s+='\nLocation: '+loc;
+  var g=document.getElementById('b-guests').value;if(g)s+='\nGuests: ~'+g;
+  if(Number(gm)>0)s+='\nGuaranteed minimum: $'+gm+'\n30% deposit: $'+dep;
+  var mn=document.getElementById('b-menu').value.trim();if(mn)s+='\nMenu: '+mn;
+  s+='\nSource: '+document.getElementById('b-src').value;
+  var nt=document.getElementById('b-notes').value.trim();if(nt)s+='\nNotes: '+nt;
+  s+='\n\nPlease add to tracker, create QB deposit invoice ($'+dep+'), and add Outlook calendar event in yellow.';
+  navigator.clipboard.writeText(s).then(function(){showMsg('b-msg','ok','✅ Copied! Paste to Claude in chat and he\'ll create everything.')}).catch(function(){showMsg('b-msg','err','Copy failed — select all text below:\n\n'+s)});
 }
 
 // ── COMPLETE MODAL ────────────────────────────────────────────────────────────
-function openCompleteModal(event) {
-  activeCompleteEvent = event;
-  document.getElementById('complete-event-name').textContent = event["Event Name"] || "";
-  const guests = "";
-  const post = `Another incredible event in the books! 🌭 We had the pleasure of serving our guests at ${event["Event Name"] || "your event"}. Thank you to everyone who came out — we love what we do! #RandomEatz #Spokane #FoodTruck #CateringSpokane`;
-  document.getElementById('complete-guests').value = "";
-  document.getElementById('complete-total').value = "";
-  document.getElementById('complete-post').value = post;
-  document.getElementById('complete-status').style.display = 'none';
-  document.getElementById('complete-modal').classList.remove('hidden');
+function openComplete(e){
+  activeEvent=e;document.getElementById('mc-name').textContent=e["Event Name"]||"";
+  document.getElementById('mc-guests').value="";document.getElementById('mc-total').value="";
+  document.getElementById('mc-post').value='Another incredible event! 🌭 We served our guests at '+(e["Event Name"]||"your event")+'. Thank you to everyone who came out — we love what we do! #RandomEatz #Spokane #FoodTruck #CateringSpokane';
+  document.getElementById('mc-msg').style.display='none';
+  document.getElementById('m-complete').classList.add('open');
 }
-function closeCompleteModal() { document.getElementById('complete-modal').classList.add('hidden'); activeCompleteEvent = null; }
+function submitComplete(){
+  var e=activeEvent;if(!e)return;
+  var g=document.getElementById('mc-guests').value,t=document.getElementById('mc-total').value,p=document.getElementById('mc-post').value;
+  var s='Mark event COMPLETE: "'+e["Event Name"]+'"\nContact: '+e["Contact Name"]+' | '+e["Contact Email"];
+  if(g)s+='\nGuests served: '+g;if(t)s+='\nActual total: $'+t;
+  s+='\n\nPlease:\n1. Update tracker status to Completed'+(t?', day-of total $'+t:'');
+  s+='\n2. Create Outlook DRAFT thank-you email to '+(e["Contact Email"]||"client")+' with review link '+REVIEW;
+  s+='\n3. Create Google Business post (no phone/URL): "'+p+'"';
+  navigator.clipboard.writeText(s).then(function(){showMsg('mc-msg','ok','✅ Copied! Paste to Claude in chat.');setTimeout(function(){closeModal('m-complete')},2000)}).catch(function(){showMsg('mc-msg','err','Copy failed')});
+}
 
-async function submitComplete() {
-  const e = activeCompleteEvent; if (!e) return;
-  const guests = document.getElementById('complete-guests').value;
-  const total = document.getElementById('complete-total').value;
-  const post = document.getElementById('complete-post').value;
-  const btn = document.getElementById('complete-btn');
-  btn.disabled = true; btn.textContent = '⏳ Claude is working...';
-  setAIStatus('complete-status','thinking','Marking complete, drafting thank-you email, and posting to Google...'); 
-  document.getElementById('complete-status').style.display='block';
+// ── EDIT MODAL ────────────────────────────────────────────────────────────────
+function openEdit(e){
+  activeEvent=e;document.getElementById('me-name').textContent=e["Event Name"]||"";
+  document.getElementById('me-status').value=e.Status||"Booked";
+  document.getElementById('me-gm').value=e["Guaranteed Min"]||"";
+  document.getElementById('me-total').value=e["Day-Of Total (actual)"]||"";
+  document.getElementById('me-notes').value=e.Notes||"";
+  document.getElementById('me-msg').style.display='none';
+  document.getElementById('m-edit').classList.add('open');
+}
+async function submitEdit(){
+  var e=activeEvent;if(!e)return;
+  var status=document.getElementById('me-status').value;
+  var gm=document.getElementById('me-gm').value;
+  var total=document.getElementById('me-total').value;
+  var notes=document.getElementById('me-notes').value;
 
-  const system = `You are the post-event automation for Random Eatz & Catering. Complete ALL 3 steps:
-1. Update Google Sheet ${SHEET_ID} worksheet ${WORKSHEET}: find row by event name "${e["Event Name"]}", update Status to "Completed", update day-of total, update notes with guest count
-2. Create Outlook DRAFT email (do NOT send): To: ${e["Contact Email"] || "client"}, Subject: "Thank You from Random Eatz & Catering! ⭐", warm thank-you body with review link: ${REVIEW}, sign from David Morgan
-3. Create Google Business Profile post with caption exactly as provided (NO phone numbers or URLs in caption text)
-Respond with brief summary.`;
-
-  const msg = `Event completed: "${e["Event Name"]}"
-Contact: ${e["Contact Name"]} | ${e["Contact Email"] || "no email"}
-Guests served: ${guests || "not specified"}
-Actual total: $${total || "TBD"}
-Google post caption (use exactly): "${post}"
-Complete all 3 steps now.`;
-
-  try {
-    const result = await callClaude(system, msg);
-    setAIStatus('complete-status','success','✅ All done!\n\n' + result);
-    setTimeout(() => { closeCompleteModal(); loadData(); }, 4000);
-  } catch(err) {
-    setAIStatus('complete-status','error','Error: ' + err.message);
+  // Try API first
+  if(API_URL){
+    showMsg('me-msg','busy','Saving...');
+    var updates=[
+      {action:'updateEvent',eventName:e["Event Name"],field:'Status',value:status},
+    ];
+    if(gm)updates.push({action:'updateEvent',eventName:e["Event Name"],field:'Guaranteed Min',value:gm});
+    if(total)updates.push({action:'updateEvent',eventName:e["Event Name"],field:'Day-Of Total (actual)',value:total});
+    if(notes!==e.Notes)updates.push({action:'updateEvent',eventName:e["Event Name"],field:'Notes',value:notes});
+    
+    for(var i=0;i<updates.length;i++){await apiCall(updates[i]);}
+    showMsg('me-msg','ok','✅ Saved! Refresh to see changes.');
+    setTimeout(function(){closeModal('m-edit');loadData()},2000);
+  }else{
+    // Fallback: copy for Claude
+    var s='Update event "'+e["Event Name"]+'":\n- Status: '+status;
+    if(gm)s+='\n- Guaranteed Min: $'+gm;
+    if(total)s+='\n- Day-Of Total: $'+total;
+    if(notes!==e.Notes)s+='\n- Notes: '+notes;
+    s+='\n\nPlease update the tracker row.';
+    navigator.clipboard.writeText(s).then(function(){showMsg('me-msg','ok','✅ Copied! Paste to Claude in chat.');setTimeout(function(){closeModal('m-edit')},2000)}).catch(function(){showMsg('me-msg','err','Copy failed')});
   }
-  btn.disabled = false; btn.textContent = '⚡ Complete Event — Do Everything';
 }
 
-// ── GOOGLE POST ───────────────────────────────────────────────────────────────
-function setTemplate(i) {
-  document.getElementById('post-caption').value = TEMPLATES[i];
-  document.getElementById('char-count').textContent = TEMPLATES[i].length + ' characters';
-  document.querySelectorAll('.template-btn').forEach((b,j) => b.classList.toggle('selected', i===j));
+// ── POST MODAL ────────────────────────────────────────────────────────────────
+function setTpl(i){document.getElementById('mp-cap').value=TPLS[i];document.getElementById('mp-chars').textContent=TPLS[i].length+' chars';
+  document.querySelectorAll('.template-btn').forEach(function(b,j){b.classList.toggle('sel',i===j)})}
+document.getElementById('mp-cap').addEventListener('input',function(){document.getElementById('mp-chars').textContent=this.value.length+' chars'});
+function copyPost(){
+  var c=document.getElementById('mp-cap').value.trim();
+  if(!c){showMsg('mp-msg','err','Write a caption first.');return}
+  var s='Create a Google Business Profile post for Random Eatz & Catering:\n\n"'+c+'"\n\nNo phone numbers or URLs in the text.';
+  navigator.clipboard.writeText(s).then(function(){showMsg('mp-msg','ok','✅ Copied! Paste to Claude in chat.');setTimeout(function(){closeModal('m-post')},2000)}).catch(function(){showMsg('mp-msg','err','Copy failed')});
 }
-document.getElementById('post-caption').addEventListener('input', function() {
-  document.getElementById('char-count').textContent = this.value.length + ' characters';
-});
-
-async function submitPost() {
-  const caption = document.getElementById('post-caption').value.trim();
-  if (!caption) { setAIStatus('post-status','error','Please write or select a caption first.'); document.getElementById('post-status').style.display='block'; return; }
-  const btn = document.getElementById('post-btn');
-  btn.disabled = true; btn.textContent = '⏳ Posting...';
-  setAIStatus('post-status','thinking','Posting to Google Business Profile...');
-  document.getElementById('post-status').style.display='block';
-
-  try {
-    const result = await callClaude(
-      `You post to Google Business Profile for Random Eatz & Catering using Zapier MCP. Location: "Random Eatz & Catering". Topic type: STANDARD. Use caption exactly as provided. After posting confirm success.`,
-      `Create a Google Business Profile post with this caption:\n\n"${caption}"`
-    );
-    setAIStatus('post-status','success','✅ Posted!\n\n' + result);
-    setTimeout(() => { document.getElementById('post-modal').classList.add('hidden'); }, 3000);
-  } catch(err) {
-    setAIStatus('post-status','error','Error: ' + err.message);
-  }
-  btn.disabled = false; btn.textContent = '📸 Post to Google';
-}
-
-// ── CLAUDE API ────────────────────────────────────────────────────────────────
-async function callClaude(system, message) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      system,
-      messages: [{ role: "user", content: message }],
-      mcp_servers: [
-        { type:"url", url:"https://mcp.zapier.com/api/v1/connect", name:"zapier-mcp" },
-        { type:"url", url:"https://ai-inc.quickbooks.intuit.com/v1/mcp", name:"quickbooks-mcp" }
-      ]
-    })
-  });
-  if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error?.message || `API error ${res.status}`); }
-  const data = await res.json();
-  return (data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n") || "Done.";
-}
-
-// ── INIT ──────────────────────────────────────────────────────────────────────
 
 // ── PASSWORD ──────────────────────────────────────────────────────────────────
-const PW_KEY = 'rec_auth';
-const PW_HASH = 'REDACTED_OLD_PASSWORD'; // Change this to your password
-
-function checkPW() {
-  const val = document.getElementById('pw-input').value;
-  if (val === PW_HASH) {
-    sessionStorage.setItem(PW_KEY, '1');
-    document.getElementById('pw-screen').style.display = 'none';
-    loadData();
-  } else {
-    document.getElementById('pw-error').textContent = 'Wrong password — try again';
-    document.getElementById('pw-input').value = '';
-    document.getElementById('pw-input').focus();
-  }
+var PW_HASH='REDACTED_OLD_PASSWORD'; // Line ~697: Change this to your password
+function checkPW(){
+  if(document.getElementById('pw-input').value===PW_HASH){
+    sessionStorage.setItem('rec_auth','1');
+    document.getElementById('pw-screen').style.display='none';loadData();
+  }else{document.getElementById('pw-error').textContent='Wrong password';document.getElementById('pw-input').value='';document.getElementById('pw-input').focus()}
 }
-
-function initApp() {
-  if (sessionStorage.getItem(PW_KEY) === '1') {
-    document.getElementById('pw-screen').style.display = 'none';
-    loadData();
-  }
-  // Otherwise password screen stays visible
-}
-
-initApp();
-
-
-// Register service worker
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(()=>{});
-}
+(function(){if(sessionStorage.getItem('rec_auth')==='1'){document.getElementById('pw-screen').style.display='none';loadData()}})();
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});
 </script>
 </body>
 </html>
