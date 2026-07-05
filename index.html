@@ -139,6 +139,14 @@ section{padding:clamp(3rem,6vw,5.5rem) clamp(1.2rem,4vw,3rem)}
 .find-row .venue .time{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:.95rem;color:var(--ink);font-weight:500;margin-top:.4rem}
 .find-foot{text-align:center;margin-top:2.5rem;font-family:'Fraunces',serif;font-style:italic;font-size:1.2rem}
 .find-foot a{color:var(--rust);font-weight:600;text-decoration:underline}
+.appearances{max-width:780px;margin:2.2rem auto 0}
+.appearances .app-title{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:.9rem;color:var(--rust);text-align:center;margin-bottom:1rem}
+.appearances .app-list{display:grid;gap:.7rem}
+.appearances .app-item{display:flex;justify-content:space-between;align-items:center;gap:1rem;background:var(--paper);border:1px solid #e6ddc8;border-radius:8px;padding:.9rem 1.2rem}
+.appearances .app-name{font-weight:600;color:var(--ink)}
+.appearances .app-loc{font-size:.9rem;color:#555}
+.appearances .app-date{font-family:'Oswald',sans-serif;font-weight:600;color:var(--rust);white-space:nowrap;font-size:.92rem}
+.appearances .app-link{margin-left:.5rem;color:var(--rust);text-decoration:underline;font-size:.88rem}
 
 .menu{background:var(--ink);color:var(--paper)}
 .menu .sec-title h2{color:#fff}
@@ -243,7 +251,7 @@ footer{background:var(--ink);color:var(--paper);padding:3.5rem clamp(1.2rem,4vw,
     <a href="#find">Find Us</a>
     <a href="#menu">Menu</a>
     <a href="#creations">Creations</a>
-    <a href="#cater">Catering</a>
+    <a href="/catering.html">Catering</a>
     <a href="#about">About</a>
     <a href="#booking" class="book">Book an Event</a>
   </div>
@@ -278,6 +286,7 @@ footer{background:var(--ink);color:var(--paper);padding:3.5rem clamp(1.2rem,4vw,
         <div class="venue"><h4>Lowe's on Broadway</h4><p>Spokane Valley, WA</p><p class="time">Open Thu&ndash;Mon &middot; or until we sell out</p><span class="cart-status" id="statusBroadway"><span class="dot"></span><span class="label"></span></span><div class="specials" id="specialsBroadway"></div></div>
       </div>
     </div>
+    <div class="appearances reveal" id="appearances"></div>
     <p class="find-foot reveal">Hours shift when we're out catering &mdash; <a href="https://instagram.com/random.eatz.and.catering" target="_blank" rel="noopener">follow @random.eatz.and.catering</a> to see where we'll be next.</p>
   </div>
 </section>
@@ -482,6 +491,55 @@ var SPECIALS_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa078
       } else { clear(); }
     })
     .catch(clear);
+})();
+/* ====== PUBLIC APPEARANCES — reads from your "Catch Us At" Google Sheet ======
+   Sheet columns: Event Name | Date | Location | Link | Show
+   Date format in sheet: YYYY-MM-DD (e.g. 2026-07-12)
+   Link is optional. Show = Yes/no.
+   Past dates and Show=no rows are hidden automatically. No deploy needed to update.
+*/
+var APPEARANCES_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSutIvjzeZvBBAVeugEG5tusr4n3zYQg2QMpKnKB1eNTicVvKIDtRLkBL4FEcZbzQiE1d3xAsFY3T8-/pub?output=csv";
+(function(){
+  var box=document.getElementById("appearances");
+  if(!box || !APPEARANCES_SHEET_CSV || APPEARANCES_SHEET_CSV.indexOf("PASTE_")===0) return;
+  function parseCSVLine(line){
+    // simple CSV split that respects quoted commas
+    var out=[], cur="", inQ=false;
+    for(var i=0;i<line.length;i++){
+      var c=line[i];
+      if(c==='"'){ inQ=!inQ; }
+      else if(c===',' && !inQ){ out.push(cur); cur=""; }
+      else { cur+=c; }
+    }
+    out.push(cur);
+    return out.map(function(s){ return s.trim(); });
+  }
+  fetch(APPEARANCES_SHEET_CSV + (APPEARANCES_SHEET_CSV.indexOf("?")>-1?"&":"?") + "t=" + Date.now())
+    .then(function(r){ return r.ok ? r.text() : Promise.reject(); })
+    .then(function(csv){
+      var rows=csv.split(/\r?\n/), events=[];
+      var today=new Date(); today.setHours(0,0,0,0);
+      rows.forEach(function(line,i){
+        if(i===0 || !line.trim()) return; // skip header/blank
+        var p=parseCSVLine(line);
+        if(p.length<5) return;
+        var name=p[0], dateStr=p[1], loc=p[2], link=p[3], show=(p[4]||"").toLowerCase();
+        if(show!=="yes" || !name || !dateStr) return;
+        var d=new Date(dateStr+"T00:00:00");
+        if(isNaN(d.getTime()) || d<today) return; // hide past/invalid dates
+        events.push({name:name, date:d, dateStr:dateStr, loc:loc, link:link});
+      });
+      events.sort(function(a,b){ return a.date-b.date; });
+      if(!events.length){ box.innerHTML=""; return; }
+      var opts={month:'short',day:'numeric'};
+      var html=events.map(function(e){
+        var pretty=e.date.toLocaleDateString('en-US',opts);
+        var linkHtml = e.link ? ' <a class="app-link" href="'+e.link.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">Details</a>' : '';
+        return '<div class="app-item"><div><div class="app-name">'+e.name.replace(/</g,'&lt;')+'</div><div class="app-loc">'+e.loc.replace(/</g,'&lt;')+linkHtml+'</div></div><div class="app-date">'+pretty+'</div></div>';
+      }).join("");
+      box.innerHTML='<div class="app-title">Catch Us At</div><div class="app-list">'+html+'</div>';
+    })
+    .catch(function(){ box.innerHTML=""; });
 })();
 document.getElementById('yr').textContent=new Date().getFullYear();
 const burger=document.getElementById('burger'),navLinks=document.getElementById('navLinks');
