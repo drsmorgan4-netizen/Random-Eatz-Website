@@ -197,7 +197,7 @@ var EVENTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQgUgqmkTYLwq4_4
 var CARTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vTrZnnySyKl4YzGI59xAnFY7KG1uYJyiA-LPg_i3iFXZBGmD3k2lgFmaMIndYKy_SDIDFwd1pdxaTw9/pub?output=csv";
 var SPECIALS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vTa078dWgxNS-Z8CkKHUypVZcQcr0qOPcy-WzSaZpOdh3cigdp4p3JnC2UDjcl5wRpmKW6s_ddvgaop/pub?output=csv";
 var REVIEW="https://g.page/r/CSQ9PypyuJxxEBM/review";
-var API_URL="https://script.google.com/macros/s/AKfycbzWlj3uA4hEMAar9h-0YHYMF62QinuIerPEkPyX_2SqcmBAmktGwICRunlVfwFAjVqHUw/exec";
+var API_URL="https://script.google.com/macros/s/AKfycbz_VYB4UoPKcdzBNyeV-Dyhy7JdhUNLkfxe9QLKJ3lyStztZxTWkR_L8ajlGLRb_F27/exec";
 var GOOGLE_CLIENT_ID="788754995536-4f9quipmiojk2mbm7htqp18dfrsmibt2.apps.googleusercontent.com";
 var AUTH_TOKEN=null, AUTH_EMAIL=null, AUTH_NAME=null;
 
@@ -283,6 +283,17 @@ async function handleGoogleSignIn(response){
     }else{
       document.getElementById('pw-error').textContent=r.error||'Sign-in not authorized.';
       console.log('AUTH DEBUG:',r);
+      if(r.debug){
+        var d=r.debug;
+        var dbgHtml='<div style="background:#fff;color:#1A1A1A;border-radius:8px;padding:10px;margin-top:10px;font-size:11px;text-align:left;max-width:320px;word-break:break-all">'
+          +'<strong>Incoming email:</strong> '+esc(d.incomingEmail)+'<br>'
+          +'<strong>Char codes:</strong> '+d.incomingEmailCharCodes.join(',')+'<br>'
+          +'<strong>Raw property:</strong> '+esc(d.rawProperty)+'<br>'
+          +'<strong>Parsed list:</strong> '+JSON.stringify(d.parsedList)+'<br>'
+          +'<strong>Match found:</strong> '+d.matchFound
+          +'</div>';
+        document.getElementById('pw-error').innerHTML=(r.error||'Sign-in not authorized.')+dbgHtml;
+      }
       if(window.google&&google.accounts&&google.accounts.id)google.accounts.id.disableAutoSelect();
     }
   }catch(e){
