@@ -282,6 +282,7 @@ async function handleGoogleSignIn(response){
       loadData();
     }else{
       document.getElementById('pw-error').textContent=r.error||'Sign-in not authorized.';
+      console.log('AUTH DEBUG:',r);
       if(window.google&&google.accounts&&google.accounts.id)google.accounts.id.disableAutoSelect();
     }
   }catch(e){
