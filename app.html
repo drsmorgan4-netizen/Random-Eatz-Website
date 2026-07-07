@@ -320,7 +320,20 @@ async function loadData(){
     fetch(SPECIALS_CSV).then(function(x){return x.text()}).then(function(t){r.specials=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){}),
     fetch(APPEARANCES_CSV).then(function(x){return x.text()}).then(function(t){r.appearances=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){})
   ]);
-  events=r.events;carts=r.carts;specials=r.specials;appearances=r.appearances;
+  events=r.events;carts=r.carts;specials=r.specials;
+  // Normalize appearance field names to match code expectations
+  appearances=r.appearances.map(function(a){
+    return {
+      Event: a["Event Name"]||a["event name"]||a.Event||a.event||'',
+      Date: a.Date||a.date||'',
+      Location: a.Location||a.location||'',
+      Link: a.Link||a.link||'',
+      Show: a.Show||a.show||'',
+      Type: a.Type||a.type||'',
+      Time: a.Time||a.time||'',
+      "End Date": a["End Date"]||a["end date"]||a["End date"]||''
+    };
+  });
   var upApp=appearances.filter(function(a){return(a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0}).length;
   document.getElementById('sbar').textContent='Updated '+new Date().toLocaleTimeString()+' · '+upApp+' upcoming events · '+specials.length+' specials';
   document.getElementById('ri').classList.remove('spin');document.getElementById('rl').textContent='Refresh';
@@ -468,7 +481,7 @@ function renderDash(){
 
 // ── APPEARANCES ──
 var appFilter='upcoming';
-function appEndDate(a){return a["End Date"]||a.endDate||a.Date||''}
+function appEndDate(a){return a["End Date"]||a.Date||''}
 function appDaysLeft(a){var ed=appEndDate(a);return daysUntil(ed)}
 function fmtDateRange(start,end){
   if(!end||end===start)return fmtDate(start);
