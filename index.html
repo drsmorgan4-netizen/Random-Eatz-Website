@@ -140,12 +140,13 @@ section{padding:clamp(3rem,6vw,5.5rem) clamp(1.2rem,4vw,3rem)}
 .find-foot{text-align:center;margin-top:2.5rem;font-family:'Fraunces',serif;font-style:italic;font-size:1.2rem}
 .find-foot a{color:var(--rust);font-weight:600;text-decoration:underline}
 .appearances{max-width:780px;margin:2.2rem auto 0}
-.appearances .app-title{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:.9rem;color:var(--rust);text-align:center;margin-bottom:1rem}
+.appearances .app-title{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:1.25rem;color:var(--rust);text-align:center;margin-bottom:1rem}
 .appearances .app-list{display:grid;gap:.7rem}
 .appearances .app-item{display:flex;justify-content:space-between;align-items:center;gap:1rem;background:var(--paper);border:1px solid #e6ddc8;border-radius:8px;padding:.9rem 1.2rem}
-.appearances .app-name{font-weight:600;color:var(--ink)}
+.appearances .app-name{font-size:1.3rem;font-weight:600;color:var(--ink)}
 .appearances .app-loc{font-size:.9rem;color:#555}
-.appearances .app-date{font-family:'Oswald',sans-serif;font-weight:600;color:var(--rust);white-space:nowrap;font-size:.92rem}
+.appearances .app-time{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:.95rem;color:var(--ink);font-weight:500;margin-top:.2rem}
+.appearances .app-date{font-family:'Oswald',sans-serif;font-weight:700;color:var(--rust);white-space:nowrap;font-size:1.25rem;text-transform:uppercase;letter-spacing:.02em}
 .appearances .app-link{margin-left:.5rem;color:var(--rust);text-decoration:underline;font-size:.88rem}
 
 .menu{background:var(--ink);color:var(--paper)}
@@ -498,12 +499,11 @@ var SPECIALS_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTa078
    Link is optional. Show = Yes/no.
    Past dates and Show=no rows are hidden automatically. No deploy needed to update.
 */
-var APPEARANCES_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSutIvjzeZvBBAVeugEG5tusr4n3zYQg2QMpKnKB1eNTicVvKIDtRLkBL4FEcZbzQiE1d3xAsFY3T8-/pub?output=csv";
+var APPEARANCES_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4qFVY4fBGlX6DZgxG7KcCCXohylTA_Lq6_WBnyOhQC4RwqLgQC57X3r3_ddbGq6LprF5EGTYprvdy/pub?output=csv";
 (function(){
   var box=document.getElementById("appearances");
   if(!box || !APPEARANCES_SHEET_CSV || APPEARANCES_SHEET_CSV.indexOf("PASTE_")===0) return;
   function parseCSVLine(line){
-    // simple CSV split that respects quoted commas
     var out=[], cur="", inQ=false;
     for(var i=0;i<line.length;i++){
       var c=line[i];
@@ -520,22 +520,36 @@ var APPEARANCES_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSu
       var rows=csv.split(/\r?\n/), events=[];
       var today=new Date(); today.setHours(0,0,0,0);
       rows.forEach(function(line,i){
-        if(i===0 || !line.trim()) return; // skip header/blank
+        if(i===0 || !line.trim()) return;
         var p=parseCSVLine(line);
         if(p.length<5) return;
+        // A=Event, B=Date, C=Location, D=Link, E=Show, F=Type, G=Time, H=End Date
         var name=p[0], dateStr=p[1], loc=p[2], link=p[3], show=(p[4]||"").toLowerCase();
+        var time=p[6]||"", endDateStr=p[7]||"";
         if(show!=="yes" || !name || !dateStr) return;
         var d=new Date(dateStr+"T00:00:00");
-        if(isNaN(d.getTime()) || d<today) return; // hide past/invalid dates
-        events.push({name:name, date:d, dateStr:dateStr, loc:loc, link:link});
+        if(isNaN(d.getTime())) return;
+        // Use end date for cutoff if present, otherwise start date
+        var cutoff=d;
+        var endD=null;
+        if(endDateStr){
+          endD=new Date(endDateStr+"T00:00:00");
+          if(!isNaN(endD.getTime())) cutoff=endD; else endD=null;
+        }
+        if(cutoff<today) return; // hide past events
+        events.push({name:name, date:d, endDate:endD, dateStr:dateStr, loc:loc, link:link, time:time});
       });
       events.sort(function(a,b){ return a.date-b.date; });
       if(!events.length){ box.innerHTML=""; return; }
       var opts={month:'short',day:'numeric'};
       var html=events.map(function(e){
         var pretty=e.date.toLocaleDateString('en-US',opts);
+        if(e.endDate && e.endDate.getTime()!==e.date.getTime()){
+          pretty+=' – '+e.endDate.toLocaleDateString('en-US',opts);
+        }
         var linkHtml = e.link ? ' <a class="app-link" href="'+e.link.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">Details</a>' : '';
-        return '<div class="app-item"><div><div class="app-name">'+e.name.replace(/</g,'&lt;')+'</div><div class="app-loc">'+e.loc.replace(/</g,'&lt;')+linkHtml+'</div></div><div class="app-date">'+pretty+'</div></div>';
+        var timeHtml = e.time ? '<div class="app-time">'+e.time.replace(/</g,'&lt;')+'</div>' : '';
+        return '<div class="app-item"><div><div class="app-name">'+e.name.replace(/</g,'&lt;')+'</div><div class="app-loc">'+e.loc.replace(/</g,'&lt;')+linkHtml+'</div>'+timeHtml+'</div><div class="app-date">'+pretty+'</div></div>';
       }).join("");
       box.innerHTML='<div class="app-title">Catch Us At</div><div class="app-list">'+html+'</div>';
     })
