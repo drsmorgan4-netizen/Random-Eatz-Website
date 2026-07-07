@@ -321,7 +321,7 @@ async function loadData(){
     fetch(APPEARANCES_CSV).then(function(x){return x.text()}).then(function(t){r.appearances=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){})
   ]);
   events=r.events;carts=r.carts;specials=r.specials;appearances=r.appearances;
-  var upApp=appearances.filter(function(a){return(a.Show||'').toLowerCase()==='yes'&&daysUntil(a.Date)>=0}).length;
+  var upApp=appearances.filter(function(a){return(a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0}).length;
   document.getElementById('sbar').textContent='Updated '+new Date().toLocaleTimeString()+' · '+upApp+' upcoming events · '+specials.length+' specials';
   document.getElementById('ri').classList.remove('spin');document.getElementById('rl').textContent='Refresh';
   renderTab();
@@ -428,8 +428,8 @@ function toggleDet(idx){var e=document.getElementById('ed-'+idx);if(e)e.classLis
 
 // ── DASHBOARD ──
 function renderDash(){
-  // Upcoming community appearances
-  var upApp=appearances.filter(function(a){return (a.Show||'').toLowerCase()==='yes'&&daysUntil(a.Date)>=0}).sort(function(a,b){return new Date(a.Date)-new Date(b.Date)});
+  // Upcoming community appearances — use end date for cutoff
+  var upApp=appearances.filter(function(a){return (a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0}).sort(function(a,b){return new Date(a.Date)-new Date(b.Date)});
   var w7App=upApp.filter(function(a){return daysUntil(a.Date)<=7});
   var h='<div class="stat-grid">';
   h+='<div class="stat-card"><div class="stat-label">📍 Upcoming Events</div><div class="stat-value">'+upApp.length+'</div><div class="stat-sub">'+w7App.length+' this week</div></div>';
@@ -440,12 +440,13 @@ function renderDash(){
   if(upApp.length>0){
     h+='<div class="section-header">Next Up</div>';
     upApp.slice(0,3).forEach(function(a){
-      var d=daysUntil(a.Date),today=d===0,soon=d>=1&&d<=3;
+      var endDt=appEndDate(a);
+      var d=daysUntil(a.Date),today=daysUntil(a.Date)<=0&&appDaysLeft(a)>=0,soon=daysUntil(a.Date)>=1&&daysUntil(a.Date)<=3;
       var bc=today?'#C8102E':soon?'#F5A623':'#2D8A4E';
-      var tb=today?'<span class="b-today">TODAY</span>':(soon?'<span class="b-soon">'+d+'d</span>':'');
+      var tb=today?'<span class="b-today">NOW</span>':(soon?'<span class="b-soon">'+d+'d</span>':'');
       h+='<div class="event-card" style="border-left:4px solid '+bc+'">'
-        +'<div class="event-inner"><div class="event-name">'+esc(a.Event||'Untitled')+'</div>'
-        +'<div class="event-meta"><span>📅 '+fmtDate(a.Date)+tb+'</span><span>📍 '+esc(a.Location||'')+'</span>'
+        +'<div class="event-inner"><div style="font-size:15px;font-weight:700;margin-bottom:4px">'+esc(a.Event||'Untitled')+'</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:13px;color:var(--mut)"><span>📅 '+fmtDateRange(a.Date,endDt!==a.Date?endDt:'')+tb+'</span><span>📍 '+esc(a.Location||'')+'</span>'
         +(a.Time?'<span>🕐 '+esc(a.Time)+'</span>':'')
         +(a.Type?'<span>🏷️ '+esc(a.Type)+'</span>':'')
         +'</div></div></div>';
@@ -467,6 +468,12 @@ function renderDash(){
 
 // ── APPEARANCES ──
 var appFilter='upcoming';
+function appEndDate(a){return a["End Date"]||a.endDate||a.Date||''}
+function appDaysLeft(a){var ed=appEndDate(a);return daysUntil(ed)}
+function fmtDateRange(start,end){
+  if(!end||end===start)return fmtDate(start);
+  return fmtDate(start)+' – '+fmtDate(end);
+}
 function renderAppearances(){
   var h='<div class="filters">';
   [["upcoming","Upcoming"],["all","All"],["hidden","Hidden"]].forEach(function(f){
@@ -479,40 +486,41 @@ function renderAppearances(){
     +'<button class="btn btn-pri" style="margin-bottom:12px" onclick="document.getElementById(\'app-add-form\').classList.toggle(\'hidden\')">➕ Add Community Event</button>'
     +'<div id="app-add-form" class="hidden" style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:14px;margin-bottom:16px">'
     +'<div class="form-group"><label>Event Name *</label><input id="aa-event" placeholder="e.g. Arbor Crest Summer Concert"/></div>'
-    +'<div class="form-row"><div class="form-group"><label>Date *</label><input id="aa-date" type="date"/></div>'
-    +'<div class="form-group"><label>Time</label><input id="aa-time" placeholder="5:00 PM - 9:00 PM"/></div></div>'
-    +'<div class="form-group"><label>Location *</label><input id="aa-location" placeholder="e.g. Arbor Crest Winery"/></div>'
+    +'<div class="form-row"><div class="form-group"><label>Start Date *</label><input id="aa-date" type="date"/></div>'
+    +'<div class="form-group"><label>End Date</label><input id="aa-enddate" type="date"/></div></div>'
+    +'<div class="form-group"><label>Serving Time</label><input id="aa-time" placeholder="11:00 AM - 6:00 PM"/></div>'
+    +'<div class="form-group"><label>Location *</label><input id="aa-location" placeholder="e.g. Plantes Ferry Park"/></div>'
     +'<div class="form-row"><div class="form-group"><label>Type</label><select id="aa-type"><option>Concert</option><option>Tournament</option><option>Festival</option><option>Market</option><option>Community</option><option>Other</option></select></div>'
     +'<div class="form-group"><label>Link</label><input id="aa-link" placeholder="https://..." type="url"/></div></div>'
     +'<button class="btn btn-green" onclick="submitAppearance()">✅ Add Event</button>'
     +'<div class="ai-msg" id="aa-msg"></div>'
     +'</div></div>';
 
-  // Filter appearances
+  // Filter appearances — use end date for upcoming cutoff
   var sorted=[].concat(appearances).sort(function(a,b){return new Date(a.Date)-new Date(b.Date)});
   var filtered;
-  if(appFilter==='upcoming') filtered=sorted.filter(function(a){return (a.Show||'').toLowerCase()==='yes'&&daysUntil(a.Date)>=0});
+  if(appFilter==='upcoming') filtered=sorted.filter(function(a){return (a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0});
   else if(appFilter==='hidden') filtered=sorted.filter(function(a){return (a.Show||'').toLowerCase()!=='yes'});
   else filtered=sorted.filter(function(a){return (a.Show||'').toLowerCase()==='yes'});
 
   if(!filtered.length){
     h+='<div style="text-align:center;padding:40px;color:var(--mut)">No '+(appFilter==='hidden'?'hidden':'upcoming')+' events</div>';
   } else {
-    filtered.forEach(function(a,i){
-      var d=daysUntil(a.Date),past=d<0,today=d===0,soon=d>=1&&d<=3;
+    filtered.forEach(function(a){
+      var endDt=appEndDate(a);
+      var d=appDaysLeft(a),past=d<0,today=daysUntil(a.Date)<=0&&d>=0,soon=daysUntil(a.Date)>=1&&daysUntil(a.Date)<=3;
       var bc=past?'#9CA3AF':today?'#C8102E':soon?'#F5A623':'#2D8A4E';
-      var tb=today?'<span class="b-today">TODAY</span>':(soon?'<span class="b-soon">'+d+'d</span>':'');
+      var tb=today?'<span class="b-today">NOW</span>':(soon?'<span class="b-soon">'+daysUntil(a.Date)+'d</span>':'');
       var visible=(a.Show||'').toLowerCase()==='yes';
-      // Find the actual row number in the sheet (header=row 1, data starts row 2)
       var sheetRow=appearances.indexOf(a)+2;
 
       h+='<div class="event-card" style="border-left:4px solid '+bc+';opacity:'+(past?.65:1)+'">'
         +'<div class="event-inner">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
         +'<div style="flex:1;min-width:0">'
-        +'<div class="event-name">'+esc(a.Event||'Untitled')+'</div>'
-        +'<div class="event-meta">'
-        +'<span>📅 '+fmtDate(a.Date)+tb+'</span>'
+        +'<div style="font-size:15px;font-weight:700;margin-bottom:4px">'+esc(a.Event||'Untitled')+'</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:13px;color:var(--mut)">'
+        +'<span>📅 '+fmtDateRange(a.Date,endDt!==a.Date?endDt:'')+tb+'</span>'
         +'<span>📍 '+esc(a.Location||'')+'</span>'
         +(a.Time?'<span>🕐 '+esc(a.Time)+'</span>':'')
         +(a.Type?'<span>🏷️ '+esc(a.Type)+'</span>':'')
@@ -530,16 +538,20 @@ function renderAppearances(){
 async function submitAppearance(){
   var ev=document.getElementById('aa-event').value.trim();
   var dt=document.getElementById('aa-date').value;
+  var enddt=document.getElementById('aa-enddate').value;
   var loc=document.getElementById('aa-location').value.trim();
   var time=document.getElementById('aa-time').value.trim();
   var type=document.getElementById('aa-type').value;
   var link=document.getElementById('aa-link').value.trim();
-  if(!ev||!dt||!loc){showMsg('aa-msg','err','Event name, date, and location are required.');return}
+  if(!ev||!dt||!loc){showMsg('aa-msg','err','Event name, start date, and location are required.');return}
   showMsg('aa-msg','busy','Adding...');
-  var r=await apiCall({action:'addAppearance',event:ev,date:dt,location:loc,link:link,type:type,time:time});
+  var data={action:'addAppearance',event:ev,date:dt,location:loc,link:link,type:type,time:time};
+  if(enddt)data.endDate=enddt;
+  var r=await apiCall(data);
   if(r.success){
     showMsg('aa-msg','ok','✅ '+ev+' added! Refreshing...');
     document.getElementById('aa-event').value='';document.getElementById('aa-date').value='';
+    document.getElementById('aa-enddate').value='';
     document.getElementById('aa-location').value='';document.getElementById('aa-link').value='';
     document.getElementById('aa-time').value='';
     setTimeout(function(){loadData()},2000);
@@ -558,6 +570,7 @@ async function toggleAppearance(row,visible){
   showMsg('app-msg',r.success?'ok':'err',r.success?'✅ Updated':r.message);
   setTimeout(function(){var e=document.getElementById('app-msg');if(e)e.style.display='none';loadData()},2000);
 }
+
 
 // ── OPS ──
 function renderOps(){
