@@ -290,7 +290,8 @@ async function handleGoogleSignIn(response){
           +'<strong>Char codes:</strong> '+d.incomingEmailCharCodes.join(',')+'<br>'
           +'<strong>Raw property:</strong> '+esc(d.rawProperty)+'<br>'
           +'<strong>Parsed list:</strong> '+JSON.stringify(d.parsedList)+'<br>'
-          +'<strong>Match found:</strong> '+d.matchFound
+          +'<strong>Match found:</strong> '+d.matchFound+'<br>'
+          +'<strong>All property keys:</strong> '+JSON.stringify(d.allPropertyKeys)
           +'</div>';
         document.getElementById('pw-error').innerHTML=(r.error||'Sign-in not authorized.')+dbgHtml;
       }
