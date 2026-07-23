@@ -242,22 +242,33 @@ var events=[],carts=[],specials=[],appearances=[],stock=[],curTab='dash',curFilt
 
 // ── SUPPLIES / INVENTORY TRACKING ──
 var INV_ITEMS=[
-  {key:'hotdog',label:'🌭 Hotdogs'},
-  {key:'sausage',label:'🌭 Sausages'},
-  {key:'brat',label:'🌭 Brats'},
-  {key:'bun',label:'🍞 Buns'},
-  {key:'sauerkraut',label:'🥬 Sauerkraut'},
-  {key:'lemonade',label:'🍋 Lemonades'},
-  {key:'soda',label:'🥤 Soda'},
-  {key:'water',label:'💧 Water Bottles'},
-  {key:'chips',label:'🍟 Chips'},
-  {key:'bacon',label:'🥓 Bacon (pieces)'},
-  {key:'brisket',label:'🍖 Brisket (lbs)'}
+  {key:'hotdog',label:'🌭 Hotdogs',unit:'piece'},
+  {key:'kielbasa',label:'🌭 Kielbasa',unit:'piece'},
+  {key:'brat',label:'🌭 Brats',unit:'piece'},
+  {key:'jalapork',label:'🌶️ Jalapeño Pork Sausage',unit:'piece'},
+  {key:'jalabrat',label:'🌶️ Jalapeño Cheddar Brat',unit:'piece'},
+  {key:'german',label:'🌭 German Sausage',unit:'piece'},
+  {key:'vegandog',label:'🌱 Vegan Dogs',unit:'piece'},
+  {key:'bun',label:'🍞 Buns',unit:'piece'},
+  {key:'gfbun',label:'🍞 Gluten-Free Buns',unit:'piece'},
+  {key:'sauerkraut',label:'🥬 Sauerkraut',unit:'serving'},
+  {key:'lemonade',label:'🍋 Lemonade (32oz)',unit:'cup'},
+  {key:'strawpuree',label:'🍓 Strawberry Purée',unit:'bottle'},
+  {key:'berrypuree',label:'🫐 Triple Berry Purée',unit:'bottle'},
+  {key:'soda',label:'🥤 Soda',unit:'can'},
+  {key:'water',label:'💧 Water Bottles',unit:'bottle'},
+  {key:'chips',label:'🍟 Chips',unit:'bag'},
+  {key:'bacon',label:'🥓 Bacon',unit:'piece'},
+  {key:'brisket',label:'🍖 Brisket',unit:'lb'},
+  {key:'ketchup',label:'🍅 Ketchup',unit:'bottle'},
+  {key:'mustard',label:'🟡 Mustard',unit:'bottle'},
+  {key:'mayo',label:'⚪ Mayo',unit:'bottle'},
+  {key:'relish',label:'🥒 Relish',unit:'container'}
 ];
 // Fallback costs (per unit, from your Costco/US Chef Store pricing). The live values come from
 // the "Item Costs" tab in your Sheet once Code.gs is set up — edit prices there, not here.
 // NOTE: brisket is priced per POUND, not per piece — log brisket Out/Back in lbs, not count.
-var ITEM_COSTS={hotdog:1.4992,sausage:1.3845,brat:1.3845,bun:0.2825,sauerkraut:0.1798,lemonade:1.05,soda:0.4719,water:0.1125,chips:0.37,bacon:0.75,brisket:10.80};
+var ITEM_COSTS={hotdog:1.4992,kielbasa:1.3845,brat:1.3845,jalapork:1.3845,jalabrat:1.3845,german:1.3845,vegandog:1.50,bun:0.2825,gfbun:0.75,sauerkraut:0.1798,lemonade:1.05,strawpuree:2.50,berrypuree:2.50,soda:0.4719,water:0.1125,chips:0.37,bacon:0.75,brisket:10.80,ketchup:2.00,mustard:2.00,mayo:2.50,relish:3.00};
 var WEATHER_TAGS=['☀️ Clear','🌧️ Rainy','🥶 Cold','💨 Windy','🔥 Hot'];
 var selWeather=[];
 function loadItemCosts(){
@@ -864,17 +875,20 @@ function renderStock(){
   if(!stock||!stock.length){
     h+='<div style="text-align:center;padding:30px;color:var(--mut)">Loading stock… tap Refresh if this stays.</div>';
   }else{
-    stock.forEach(function(s){
-      var low=Number(s.reorder)>0&&Number(s.onHand)<=Number(s.reorder);
+    var byKey={};(stock||[]).forEach(function(s){byKey[s.item]=s});
+    INV_ITEMS.forEach(function(it){
+      var s=byKey[it.key]||{};
+      var onHand=Number(s.onHand)||0,reorder=Number(s.reorder)||0,unit=s.unit||it.unit||'';
+      var low=reorder>0&&onHand<=reorder;
       h+='<div class="event-card" style="border-left:4px solid '+(low?'#C8102E':'#2D8A4E')+'">'
         +'<div class="event-inner">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">'
-        +'<div style="font-weight:700;font-size:15px">'+itemLabel(s.item)+(low?' <span class="b-today">LOW</span>':'')+'</div>'
-        +(s.unit?'<div style="font-size:12px;color:var(--mut)">per '+esc(s.unit)+'</div>':'')
+        +'<div style="font-weight:700;font-size:15px">'+it.label+(low?' <span class="b-today">LOW</span>':'')+'</div>'
+        +(unit?'<div style="font-size:12px;color:var(--mut)">per '+esc(unit)+'</div>':'')
         +'</div>'
         +'<div class="form-row">'
-        +'<div class="form-group"><label style="font-size:11px">On Hand</label><input type="number" class="stk-onhand" data-item="'+s.item+'" value="'+s.onHand+'"/></div>'
-        +'<div class="form-group"><label style="font-size:11px">Reorder At</label><input type="number" class="stk-reorder" data-item="'+s.item+'" value="'+s.reorder+'"/></div>'
+        +'<div class="form-group"><label style="font-size:11px">On Hand</label><input type="number" class="stk-onhand" data-item="'+it.key+'" value="'+onHand+'"/></div>'
+        +'<div class="form-group"><label style="font-size:11px">Reorder At</label><input type="number" class="stk-reorder" data-item="'+it.key+'" value="'+reorder+'"/></div>'
         +'</div></div></div>';
     });
     h+='<button class="btn btn-pri" style="margin-top:6px" onclick="saveStockLevels()" id="stk-btn">💾 Save Stock Levels</button>';
