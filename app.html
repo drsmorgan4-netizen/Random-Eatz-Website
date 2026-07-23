@@ -573,6 +573,7 @@ function renderAppearances(){
       var tb=today?'<span class="b-today">NOW</span>':(soon?'<span class="b-soon">'+daysUntil(a.Date)+'d</span>':'');
       var visible=(a.Show||'').toLowerCase()==='yes';
       var sheetRow=appearances.indexOf(a)+2;
+      var invEvt=JSON.stringify({"Event Name":a.Event||'',"Event Date":a.Date||''}).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
 
       h+='<div class="event-card" style="border-left:4px solid '+bc+';opacity:'+(past?.65:1)+'">'
         +'<div class="event-inner">'
@@ -588,7 +589,9 @@ function renderAppearances(){
         +'<div style="display:flex;align-items:center;gap:8px">'
         +(a.Link?'<a href="'+esc(a.Link)+'" target="_blank" style="font-size:18px;text-decoration:none" title="Event link">🔗</a>':'')
         +'<label class="toggle"><input type="checkbox" '+(visible?'checked':'')+' onchange="toggleAppearance('+sheetRow+',this.checked)"><span class="slider"></span></label>'
-        +'</div></div></div></div>';
+        +'</div></div>'
+        +'<div class="event-actions" style="margin-top:10px;display:flex;gap:8px"><button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openInventory('+invEvt+')">📦 Log Supplies</button></div>'
+        +'</div></div>';
     });
   }
   h+='<div class="ai-msg" id="app-msg"></div>';
