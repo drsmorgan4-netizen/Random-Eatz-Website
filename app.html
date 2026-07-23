@@ -192,6 +192,24 @@ textarea{resize:vertical;min-height:60px}
 <div class="ai-msg" id="me-msg"></div>
 </div></div>
 
+<!-- Inventory / Supplies Modal -->
+<div class="modal-bg" id="m-inventory"><div class="modal">
+<div class="modal-head"><div><div class="modal-title">📦 Log Supplies</div><div class="modal-sub" id="mi-name"></div></div><button class="close-btn" onclick="closeModal('m-inventory')">✕</button></div>
+<div class="info-box">Enter what you took out and brought back for each item — cost & profit calculate automatically.</div>
+<div id="mi-items"></div>
+<div class="form-group"><label>Weather</label><div id="mi-weather"></div></div>
+<div class="form-row"><div class="form-group"><label>Other Food Vendors</label><input type="number" id="mi-vendors" placeholder="2"/></div>
+<div class="form-group"><label>Approx. Attendance</label><input type="number" id="mi-attendance" placeholder="300"/></div></div>
+<div class="form-row"><div class="form-group"><label>Revenue ($)</label><input type="number" id="mi-revenue" oninput="updInvCalc()" placeholder="1450"/></div>
+<div class="form-group"><label>Miles Driven (round trip)</label><input type="number" id="mi-miles" placeholder="24"/></div></div>
+<div class="form-row"><div class="form-group"><label>Staff Worked</label><input type="number" id="mi-staff" placeholder="2"/></div>
+<div class="form-group"><label>Event Type</label><select id="mi-type"><option value="">--</option><option>Youth Sports</option><option>School</option><option>Corporate</option><option>Community</option><option>Wedding</option><option>Church</option><option>Private Party</option><option>Cart Day</option><option>Other</option></select></div></div>
+<div class="form-group"><label>Notes</label><textarea id="mi-notes" rows="3" placeholder="Anything else worth remembering..."></textarea></div>
+<div class="info-box" id="mi-calc" style="font-weight:700"></div>
+<button class="btn btn-green" onclick="submitInventory()" id="mi-btn">💾 Save Supplies &amp; Conditions</button>
+<div class="ai-msg" id="mi-msg"></div>
+</div></div>
+
 <script>
 var EVENTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQgUgqmkTYLwq4_4XK2FKHpwvfofDmhH6wpaj7WuetfE8wTxfTKBtFDGB_ON_JmwPJAe68_tONiYUSD/pub?gid=1785733774&single=true&output=csv";
 var CARTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vTrZnnySyKl4YzGI59xAnFY7KG1uYJyiA-LPg_i3iFXZBGmD3k2lgFmaMIndYKy_SDIDFwd1pdxaTw9/pub?output=csv";
@@ -210,6 +228,34 @@ var TPLS=[
 ];
 
 var events=[],carts=[],specials=[],appearances=[],curTab='dash',curFilter='upcoming',activeEvent=null;
+
+// ── SUPPLIES / INVENTORY TRACKING ──
+var INV_ITEMS=[
+  {key:'hotdog',label:'🌭 Hotdogs'},
+  {key:'sausage',label:'🌭 Sausages'},
+  {key:'brat',label:'🌭 Brats'},
+  {key:'bun',label:'🍞 Buns'},
+  {key:'sauerkraut',label:'🥬 Sauerkraut'},
+  {key:'lemonade',label:'🍋 Lemonades'},
+  {key:'soda',label:'🥤 Soda'},
+  {key:'water',label:'💧 Water Bottles'},
+  {key:'chips',label:'🍟 Chips'},
+  {key:'bacon',label:'🥓 Bacon (pieces)'},
+  {key:'brisket',label:'🍖 Brisket (lbs)'}
+];
+// Fallback costs (per unit, from your Costco/US Chef Store pricing). The live values come from
+// the "Item Costs" tab in your Sheet once Code.gs is set up — edit prices there, not here.
+// NOTE: brisket is priced per POUND, not per piece — log brisket Out/Back in lbs, not count.
+var ITEM_COSTS={hotdog:1.4992,sausage:1.3845,brat:1.3845,bun:0.2825,sauerkraut:0.1798,lemonade:1.05,soda:0.4719,water:0.1125,chips:0.37,bacon:0.75,brisket:10.80};
+var WEATHER_TAGS=['☀️ Clear','🌧️ Rainy','🥶 Cold','💨 Windy','🔥 Hot'];
+var selWeather=[];
+function loadItemCosts(){
+  if(!API_URL||!AUTH_TOKEN)return;
+  fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getItemCosts',token:AUTH_TOKEN})})
+    .then(function(r){return r.json()})
+    .then(function(r){if(r&&r.ok&&r.costs)for(var k in r.costs){ITEM_COSTS[k]=Number(r.costs[k])||0}})
+    .catch(function(){/* keep fallback defaults */});
+}
 var calYear,calMonth,calSelected=null;
 (function(){var d=new Date();calYear=d.getFullYear();calMonth=d.getMonth()})();
 
@@ -280,7 +326,7 @@ async function handleGoogleSignIn(response){
       sessionStorage.setItem('rec_auth_email',r.email);
       document.getElementById('pw-screen').style.display='none';
       document.getElementById('header-sub').textContent='⚡ Signed in as '+r.email;
-      loadData();
+      loadData();loadItemCosts();
     }else{
       document.getElementById('pw-error').textContent=r.error||'Sign-in not authorized.';
       console.log('AUTH DEBUG:',r);
@@ -421,6 +467,7 @@ function eCard(e,idx,compact){
   var acts='';
   if(booked)acts+='<button class="btn-sm btn-green" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openComplete('+ej+')">⚡ Complete</button>';
   acts+='<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openEdit('+ej+')">✏️ Edit</button>';
+  acts+='<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openInventory('+ej+')">📦 Supplies</button>';
   if(info.phone)acts+='<a class="btn-sm" href="tel:'+info.phone.replace(/[^\d+]/g,'')+'" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;flex:1;display:flex;align-items:center;justify-content:center;gap:6px">📞 Call</a>';
   
   var det='<div class="event-detail" id="ed-'+idx+'">'
@@ -707,6 +754,75 @@ async function submitEdit(){
   }
 }
 
+// ── SUPPLIES / INVENTORY ──
+function openInventory(e){
+  activeEvent=e;
+  document.getElementById('mi-name').textContent=e["Event Name"]||"";
+  var h='';
+  INV_ITEMS.forEach(function(it){
+    h+='<div class="form-row" style="align-items:flex-end">'
+      +'<div class="form-group" style="flex:1.6"><label>&nbsp;</label><div style="padding:8px 0;font-weight:600">'+it.label+'</div></div>'
+      +'<div class="form-group"><label style="font-size:11px">Out</label><input type="number" min="0" class="inv-out" data-item="'+it.key+'" oninput="updInvCalc()" placeholder="0"/></div>'
+      +'<div class="form-group"><label style="font-size:11px">Back</label><input type="number" min="0" class="inv-back" data-item="'+it.key+'" oninput="updInvCalc()" placeholder="0"/></div>'
+      +'</div>';
+  });
+  document.getElementById('mi-items').innerHTML=h;
+  selWeather=[];
+  var wh='';
+  WEATHER_TAGS.forEach(function(w,i){wh+='<button type="button" class="template-btn" style="display:inline-block;width:auto;margin:3px 4px 0 0" onclick="toggleWeather('+i+',this)">'+w+'</button>'});
+  document.getElementById('mi-weather').innerHTML=wh;
+  document.getElementById('mi-vendors').value='';
+  document.getElementById('mi-attendance').value='';
+  document.getElementById('mi-revenue').value=e["Day-Of Total (actual)"]||e["Guaranteed Min"]||'';
+  document.getElementById('mi-miles').value='';
+  document.getElementById('mi-staff').value='';
+  document.getElementById('mi-type').value='';
+  document.getElementById('mi-notes').value='';
+  document.getElementById('mi-msg').style.display='none';
+  updInvCalc();
+  document.getElementById('m-inventory').classList.add('open');
+}
+function toggleWeather(i,btn){
+  var w=WEATHER_TAGS[i],idx=selWeather.indexOf(w);
+  if(idx===-1){selWeather.push(w);btn.classList.add('sel')}else{selWeather.splice(idx,1);btn.classList.remove('sel')}
+}
+function updInvCalc(){
+  var cost=0;
+  document.querySelectorAll('.inv-out').forEach(function(inp){
+    var key=inp.dataset.item,out=Number(inp.value)||0;
+    var backInp=document.querySelector('.inv-back[data-item="'+key+'"]');
+    var back=Number(backInp&&backInp.value)||0;
+    cost+=Math.max(out-back,0)*(ITEM_COSTS[key]||0);
+  });
+  var rev=Number(document.getElementById('mi-revenue').value)||0;
+  document.getElementById('mi-calc').textContent='Estimated Food Cost: $'+cost.toFixed(2)+'   ·   Estimated Profit: $'+(rev-cost).toFixed(2);
+}
+async function submitInventory(){
+  var e=activeEvent;if(!e)return;
+  var items={};
+  document.querySelectorAll('.inv-out').forEach(function(inp){
+    var key=inp.dataset.item;
+    var backInp=document.querySelector('.inv-back[data-item="'+key+'"]');
+    items[key]={out:Number(inp.value)||0,back:Number(backInp&&backInp.value)||0};
+  });
+  var payload={
+    action:'saveEventInventory',
+    eventName:e["Event Name"]||'',eventDate:e["Event Date"]||'',
+    items:items,weather:selWeather,
+    vendors:document.getElementById('mi-vendors').value,
+    attendance:document.getElementById('mi-attendance').value,
+    revenue:document.getElementById('mi-revenue').value,
+    miles:document.getElementById('mi-miles').value,
+    staff:document.getElementById('mi-staff').value,
+    eventType:document.getElementById('mi-type').value,
+    notes:document.getElementById('mi-notes').value
+  };
+  showMsg('mi-msg','busy','Saving...');
+  var r=await apiCall(payload);
+  if(r.success){showMsg('mi-msg','ok','✅ '+r.message);setTimeout(function(){closeModal('m-inventory')},2500)}
+  else{showMsg('mi-msg','err',r.message||'Save failed.')}
+}
+
 // ── POST ──
 function setTpl(i){document.getElementById('mp-cap').value=TPLS[i];document.getElementById('mp-chars').textContent=TPLS[i].length+' chars';
 document.querySelectorAll('.template-btn').forEach(function(b,j){b.classList.toggle('sel',i===j)})}
@@ -731,7 +847,7 @@ function copyPost(){
         AUTH_TOKEN=savedToken;AUTH_EMAIL=r.email;
         document.getElementById('pw-screen').style.display='none';
         document.getElementById('header-sub').textContent='⚡ Signed in as '+r.email;
-        loadData();
+        loadData();loadItemCosts();
         return;
       }
     }catch(e){/* fall through to sign-in screen */}
