@@ -145,6 +145,7 @@ textarea{resize:vertical;min-height:60px}
 <div id="v-ops" class="hidden"></div>
 <div id="v-book" class="hidden"></div>
 <div id="v-appearances" class="hidden"></div>
+<div id="v-stock" class="hidden"></div>
 </div>
 
 <nav class="bottom-nav">
@@ -152,6 +153,7 @@ textarea{resize:vertical;min-height:60px}
 <button class="nav-btn" onclick="showTab('ops')" id="n-ops"><span class="nav-icon">🚚</span>Ops</button>
 <button class="nav-btn" onclick="showTab('book')" id="n-book"><span class="nav-icon">➕</span>Book</button>
 <button class="nav-btn" onclick="showTab('appearances')" id="n-appearances"><span class="nav-icon">📍</span>Events</button>
+<button class="nav-btn" onclick="showTab('stock')" id="n-stock"><span class="nav-icon">📦</span>Stock</button>
 </nav>
 
 <!-- Complete Modal -->
@@ -210,6 +212,15 @@ textarea{resize:vertical;min-height:60px}
 <div class="ai-msg" id="mi-msg"></div>
 </div></div>
 
+<!-- Log Supply Run Modal -->
+<div class="modal-bg" id="m-supplyrun"><div class="modal">
+<div class="modal-head"><div class="modal-title">🛒 Log Supply Run</div><button class="close-btn" onclick="closeModal('m-supplyrun')">✕</button></div>
+<div class="info-box">Enter how much you just bought for each item — it adds to your On Hand stock.</div>
+<div id="sr-items"></div>
+<button class="btn btn-green" onclick="submitSupplyRun()" id="sr-btn">💾 Add to Stock</button>
+<div class="ai-msg" id="sr-msg"></div>
+</div></div>
+
 <script>
 var EVENTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQgUgqmkTYLwq4_4XK2FKHpwvfofDmhH6wpaj7WuetfE8wTxfTKBtFDGB_ON_JmwPJAe68_tONiYUSD/pub?gid=1785733774&single=true&output=csv";
 var CARTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vTrZnnySyKl4YzGI59xAnFY7KG1uYJyiA-LPg_i3iFXZBGmD3k2lgFmaMIndYKy_SDIDFwd1pdxaTw9/pub?output=csv";
@@ -227,7 +238,7 @@ var TPLS=[
 "Random Eatz & Catering — available for your next event! 🌭 Weddings, corporate, schools, concerts. #RandomEatz #CateringSpokane"
 ];
 
-var events=[],carts=[],specials=[],appearances=[],curTab='dash',curFilter='upcoming',activeEvent=null;
+var events=[],carts=[],specials=[],appearances=[],stock=[],curTab='dash',curFilter='upcoming',activeEvent=null;
 
 // ── SUPPLIES / INVENTORY TRACKING ──
 var INV_ITEMS=[
@@ -383,14 +394,15 @@ async function loadData(){
   var upApp=appearances.filter(function(a){return(a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0}).length;
   document.getElementById('sbar').textContent='Updated '+new Date().toLocaleTimeString()+' · '+upApp+' upcoming events · '+specials.length+' specials';
   document.getElementById('ri').classList.remove('spin');document.getElementById('rl').textContent='Refresh';
+  await loadStock();
   renderTab();
 }
 
 // ── NAV ──
-function showTab(t){curTab=t;['dash','ops','book','appearances'].forEach(function(x){
+function showTab(t){curTab=t;['dash','ops','book','appearances','stock'].forEach(function(x){
 document.getElementById('v-'+x).classList.toggle('hidden',x!==t);
 document.getElementById('n-'+x).classList.toggle('active',x===t);});renderTab()}
-function renderTab(){if(curTab==='dash')renderDash();else if(curTab==='ops')renderOps();else if(curTab==='book')renderBook();else if(curTab==='appearances')renderAppearances()}
+function renderTab(){if(curTab==='dash')renderDash();else if(curTab==='ops')renderOps();else if(curTab==='book')renderBook();else if(curTab==='appearances')renderAppearances();else if(curTab==='stock')renderStock()}
 
 // ── CALENDAR ──
 function renderCalendar(containerEvents){
@@ -494,6 +506,14 @@ function renderDash(){
   var h='<div class="stat-grid">';
   h+='<div class="stat-card"><div class="stat-label">📍 Upcoming Events</div><div class="stat-value">'+upApp.length+'</div><div class="stat-sub">'+w7App.length+' this week</div></div>';
   h+='</div>';
+  var lowItems=(stock||[]).filter(function(s){return Number(s.reorder)>0&&Number(s.onHand)<=Number(s.reorder)});
+  if(lowItems.length){
+    h+='<div style="background:#FEF2F2;border:1px solid var(--red);border-radius:12px;padding:12px 14px;margin-bottom:14px">'
+      +'<div style="font-weight:700;color:var(--red);margin-bottom:4px">⚠️ Low Stock — time to reorder</div>'
+      +'<div style="font-size:13px;color:var(--txt);line-height:1.5">'+lowItems.map(function(s){return itemLabel(s.item)+' ('+s.onHand+' left, reorder at '+s.reorder+')'}).join(' · ')+'</div>'
+      +'<button class="btn-sm" style="margin-top:8px;background:#fff;color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer" onclick="showTab(\'stock\')">📦 View Stock</button>'
+      +'</div>';
+  }
   h+='<button class="btn btn-blue" style="margin-bottom:14px" onclick="document.getElementById(\'m-post\').classList.add(\'open\')">📸 Post to Google Business</button>';
 
   // Show next 3 upcoming appearances as preview cards
@@ -822,8 +842,73 @@ async function submitInventory(){
   };
   showMsg('mi-msg','busy','Saving...');
   var r=await apiCall(payload);
-  if(r.success){showMsg('mi-msg','ok','✅ '+r.message);setTimeout(function(){closeModal('m-inventory')},2500)}
+  if(r.success){showMsg('mi-msg','ok','✅ '+r.message);loadStock();setTimeout(function(){closeModal('m-inventory')},2500)}
   else{showMsg('mi-msg','err',r.message||'Save failed.')}
+}
+
+// ── STOCK / INVENTORY ON HAND ──
+function itemLabel(key){for(var i=0;i<INV_ITEMS.length;i++){if(INV_ITEMS[i].key===key)return INV_ITEMS[i].label}return key}
+async function loadStock(){
+  if(!API_URL||!AUTH_TOKEN)return;
+  try{
+    var resp=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getStock',token:AUTH_TOKEN})});
+    var r=await resp.json();
+    if(r&&r.ok&&Array.isArray(r.items))stock=r.items;
+  }catch(e){}
+}
+function renderStock(){
+  if((!stock||!stock.length)&&AUTH_TOKEN){loadStock().then(function(){if(curTab==='stock')renderStock()})}
+  var h='<div class="section-header">📦 Stock On Hand</div>';
+  h+='<div class="info-box">Set what you have and a reorder point for each item. Logging Supplies subtracts what you use; a Supply Run adds stock. You\'ll get a low-stock alert when an item hits its reorder point.</div>';
+  h+='<button class="btn btn-green" style="margin-bottom:12px" onclick="openSupplyRun()">🛒 Log Supply Run (add stock)</button>';
+  if(!stock||!stock.length){
+    h+='<div style="text-align:center;padding:30px;color:var(--mut)">Loading stock… tap Refresh if this stays.</div>';
+  }else{
+    stock.forEach(function(s){
+      var low=Number(s.reorder)>0&&Number(s.onHand)<=Number(s.reorder);
+      h+='<div class="event-card" style="border-left:4px solid '+(low?'#C8102E':'#2D8A4E')+'">'
+        +'<div class="event-inner">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">'
+        +'<div style="font-weight:700;font-size:15px">'+itemLabel(s.item)+(low?' <span class="b-today">LOW</span>':'')+'</div>'
+        +(s.unit?'<div style="font-size:12px;color:var(--mut)">per '+esc(s.unit)+'</div>':'')
+        +'</div>'
+        +'<div class="form-row">'
+        +'<div class="form-group"><label style="font-size:11px">On Hand</label><input type="number" class="stk-onhand" data-item="'+s.item+'" value="'+s.onHand+'"/></div>'
+        +'<div class="form-group"><label style="font-size:11px">Reorder At</label><input type="number" class="stk-reorder" data-item="'+s.item+'" value="'+s.reorder+'"/></div>'
+        +'</div></div></div>';
+    });
+    h+='<button class="btn btn-pri" style="margin-top:6px" onclick="saveStockLevels()" id="stk-btn">💾 Save Stock Levels</button>';
+  }
+  h+='<div class="ai-msg" id="stk-msg"></div>';
+  document.getElementById('v-stock').innerHTML=h;
+}
+async function saveStockLevels(){
+  var items={};
+  document.querySelectorAll('.stk-onhand').forEach(function(inp){var k=inp.dataset.item;items[k]=items[k]||{};items[k].onHand=inp.value});
+  document.querySelectorAll('.stk-reorder').forEach(function(inp){var k=inp.dataset.item;items[k]=items[k]||{};items[k].reorder=inp.value});
+  showMsg('stk-msg','busy','Saving…');
+  var r=await apiCall({action:'updateStock',items:items});
+  if(r.success){await loadStock();renderStock();showMsg('stk-msg','ok','✅ Stock levels saved.')}
+  else showMsg('stk-msg','err',r.message||'Save failed.');
+}
+function openSupplyRun(){
+  var h='';
+  INV_ITEMS.forEach(function(it){
+    h+='<div class="form-row" style="align-items:flex-end"><div class="form-group" style="flex:1.6"><label>&nbsp;</label><div style="padding:8px 0;font-weight:600">'+it.label+'</div></div>'
+      +'<div class="form-group"><label style="font-size:11px">Received</label><input type="number" min="0" class="sr-recv" data-item="'+it.key+'" placeholder="0"/></div></div>';
+  });
+  document.getElementById('sr-items').innerHTML=h;
+  document.getElementById('sr-msg').style.display='none';
+  document.getElementById('m-supplyrun').classList.add('open');
+}
+async function submitSupplyRun(){
+  var items={};
+  document.querySelectorAll('.sr-recv').forEach(function(inp){var q=Number(inp.value)||0;if(q)items[inp.dataset.item]=q});
+  if(!Object.keys(items).length){showMsg('sr-msg','err','Enter at least one amount.');return}
+  showMsg('sr-msg','busy','Saving…');
+  var r=await apiCall({action:'saveSupplyRun',items:items});
+  if(r.success){await loadStock();closeModal('m-supplyrun');showTab('stock')}
+  else showMsg('sr-msg','err',r.message||'Save failed.');
 }
 
 // ── POST ──
