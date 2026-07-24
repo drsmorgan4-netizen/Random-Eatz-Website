@@ -235,6 +235,23 @@ textarea{resize:vertical;min-height:60px}
 <div class="ai-msg" id="ea-msg"></div>
 </div></div>
 
+<!-- Items Needed (Plan) Modal -->
+<div class="modal-bg" id="m-plan"><div class="modal">
+<div class="modal-head"><div><div class="modal-title">🧮 Items Needed</div><div class="modal-sub" id="pl-name"></div></div><button class="close-btn" onclick="closeModal('m-plan')">✕</button></div>
+<div class="info-box">Enter how much of each item this event will need. The Shopping List compares this to your stock on hand.</div>
+<div id="pl-items"></div>
+<button class="btn btn-green" onclick="submitPlan()" id="pl-btn">💾 Save Items Needed</button>
+<div class="ai-msg" id="pl-msg"></div>
+</div></div>
+
+<!-- Shopping List Modal -->
+<div class="modal-bg" id="m-shop"><div class="modal">
+<div class="modal-head"><div class="modal-title">🛒 Shopping List</div><button class="close-btn" onclick="closeModal('m-shop')">✕</button></div>
+<div class="info-box">What to buy for all upcoming events, after subtracting what's on hand.</div>
+<div id="shop-body"><div style="text-align:center;padding:20px;color:var(--mut)">Loading…</div></div>
+<div class="ai-msg" id="shop-msg"></div>
+</div></div>
+
 <script>
 var EVENTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQgUgqmkTYLwq4_4XK2FKHpwvfofDmhH6wpaj7WuetfE8wTxfTKBtFDGB_ON_JmwPJAe68_tONiYUSD/pub?gid=1785733774&single=true&output=csv";
 var CARTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vTrZnnySyKl4YzGI59xAnFY7KG1uYJyiA-LPg_i3iFXZBGmD3k2lgFmaMIndYKy_SDIDFwd1pdxaTw9/pub?output=csv";
@@ -505,6 +522,7 @@ function eCard(e,idx,compact){
   if(booked)acts+='<button class="btn-sm btn-green" style="background:var(--green);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:700;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openComplete('+ej+')">⚡ Complete</button>';
   acts+='<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openEdit('+ej+')">✏️ Edit</button>';
   acts+='<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openInventory('+ej+')">📦 Supplies</button>';
+  acts+='<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openPlan('+ej+')">🧮 Plan</button>';
   if(info.phone)acts+='<a class="btn-sm" href="tel:'+info.phone.replace(/[^\d+]/g,'')+'" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;flex:1;display:flex;align-items:center;justify-content:center;gap:6px">📞 Call</a>';
   
   var det='<div class="event-detail" id="ed-'+idx+'">'
@@ -638,7 +656,8 @@ function renderAppearances(){
         +'</div></div>'
         +'<div class="event-actions" style="margin-top:10px;display:flex;gap:8px">'
         +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openEditApp('+appEdit+')">✏️ Edit</button>'
-        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openInventory('+invEvt+')">📦 Log Supplies</button></div>'
+        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openInventory('+invEvt+')">📦 Log Supplies</button>'
+        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openPlan('+invEvt+')">🧮 Plan</button></div>'
         +'</div></div>';
     });
   }
@@ -944,6 +963,7 @@ function renderStock(){
   var h='<div class="section-header">📦 Stock On Hand</div>';
   h+='<div class="info-box">Set what you have and a reorder point for each item. Logging Supplies subtracts what you use; a Supply Run adds stock. You\'ll get a low-stock alert when an item hits its reorder point.</div>';
   h+='<button class="btn btn-green" style="margin-bottom:12px" onclick="openSupplyRun()">🛒 Log Supply Run (add stock)</button>';
+  h+='<button class="btn btn-blue" style="margin-bottom:12px" onclick="openShoppingList()">🛒 Shopping List (what to buy)</button>';
   if(!stock||!stock.length){
     h+='<div style="text-align:center;padding:30px;color:var(--mut)">Loading stock… tap Refresh if this stays.</div>';
   }else{
@@ -995,6 +1015,52 @@ async function submitSupplyRun(){
   var r=await apiCall({action:'saveSupplyRun',items:items});
   if(r.success){await loadStock();closeModal('m-supplyrun');showTab('stock')}
   else showMsg('sr-msg','err',r.message||'Save failed.');
+}
+
+// ── PHASE 2: ITEMS NEEDED + SHOPPING LIST ──
+var plEvent=null;
+function openPlan(o){
+  var nm=o.eventName||o["Event Name"]||'';
+  var dt=o.eventDate||o["Event Date"]||o.date||'';
+  plEvent={eventName:nm,eventDate:dt};
+  document.getElementById('pl-name').textContent=nm;
+  var h='';
+  INV_ITEMS.forEach(function(it){
+    h+='<div class="form-row" style="align-items:flex-end"><div class="form-group" style="flex:1.6"><label>&nbsp;</label><div style="padding:8px 0;font-weight:600">'+it.label+'</div></div>'
+      +'<div class="form-group"><label style="font-size:11px">Needed</label><input type="number" min="0" class="pl-need" data-item="'+it.key+'" placeholder="0"/></div></div>';
+  });
+  document.getElementById('pl-items').innerHTML=h;
+  document.getElementById('pl-msg').style.display='none';
+  document.getElementById('m-plan').classList.add('open');
+}
+async function submitPlan(){
+  if(!plEvent||!plEvent.eventName){showMsg('pl-msg','err','No event selected.');return}
+  var items={};
+  document.querySelectorAll('.pl-need').forEach(function(inp){var q=Number(inp.value)||0;if(q)items[inp.dataset.item]=q});
+  showMsg('pl-msg','busy','Saving…');
+  var r=await apiCall({action:'saveEventNeeds',eventName:plEvent.eventName,eventDate:plEvent.eventDate,items:items});
+  if(r.success){showMsg('pl-msg','ok','✅ Saved! See the Shopping List on the Stock tab.');setTimeout(function(){closeModal('m-plan')},1500)}
+  else showMsg('pl-msg','err',r.message||'Save failed.');
+}
+async function openShoppingList(){
+  document.getElementById('shop-body').innerHTML='<div style="text-align:center;padding:20px;color:var(--mut)">Loading…</div>';
+  document.getElementById('m-shop').classList.add('open');
+  var resp;
+  try{
+    var rr=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getShoppingList',token:AUTH_TOKEN})});
+    resp=await rr.json();
+  }catch(e){document.getElementById('shop-body').innerHTML='<div style="color:var(--red);padding:20px">Network error.</div>';return}
+  if(!resp||!resp.ok){document.getElementById('shop-body').innerHTML='<div style="color:var(--red);padding:20px">'+((resp&&resp.error)||'Failed to load. Add Items Needed to an event first.')+'</div>';return}
+  var items=resp.items||[];
+  var buy=items.filter(function(x){return x.buy>0});
+  var h='';
+  if(!buy.length){h='<div style="text-align:center;padding:20px;color:var(--green);font-weight:600">✅ You have enough on hand for all planned events!</div>';}
+  else{
+    buy.forEach(function(x){
+      h+='<div class="event-card" style="border-left:4px solid #C8102E"><div class="event-inner"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:700">'+itemLabel(x.item)+'</div><div style="font-weight:700;color:var(--red)">Buy '+x.buy+'</div></div><div style="font-size:12px;color:var(--mut);margin-top:2px">Need '+x.needed+' · Have '+x.onHand+'</div></div></div>';
+    });
+  }
+  document.getElementById('shop-body').innerHTML=h;
 }
 
 // ── POST ──
