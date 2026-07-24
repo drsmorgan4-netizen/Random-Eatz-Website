@@ -751,7 +751,7 @@ async function toggleSpec(name,on,idx){
 // ── BOOK ──
 function renderBook(){
   document.getElementById('v-book').innerHTML=
-  '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:linear-gradient(135deg,#C8102E,#9B0D23);border-radius:10px;margin-bottom:16px"><span style="font-size:20px">⚡</span><div><div style="color:#fff;font-weight:700;font-size:14px">New Booking</div><div style="color:rgba(255,255,255,.8);font-size:12px">Fill in details, copy summary for Claude</div></div></div>'
+  '<div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:linear-gradient(135deg,#C8102E,#9B0D23);border-radius:10px;margin-bottom:16px"><span style="font-size:20px">⚡</span><div><div style="color:#fff;font-weight:700;font-size:14px">New Booking</div><div style="color:rgba(255,255,255,.8);font-size:12px">Save privately to your Command Center, or copy for Claude</div></div></div>'
   +'<div class="form-group"><label>Event Name *</label><input id="b-name" placeholder="e.g. Johnson Wedding"/></div>'
   +'<div class="form-row"><div class="form-group"><label>Contact *</label><input id="b-contact"/></div><div class="form-group"><label>Email</label><input id="b-email" type="email"/></div></div>'
   +'<div class="form-row"><div class="form-group"><label>Phone</label><input id="b-phone" type="tel"/></div><div class="form-group"><label>Date *</label><input id="b-date" type="date"/></div></div>'
@@ -762,6 +762,7 @@ function renderBook(){
   +'<div class="form-group"><label>Menu Notes</label><input id="b-menu" placeholder="e.g. Mix of dogs + lemonades"/></div>'
   +'<div class="form-group"><label>Notes</label><textarea id="b-notes"></textarea></div>'
   +'<div class="deposit-preview hidden" id="b-dep"></div>'
+  +'<button class="btn btn-green" style="margin-bottom:8px" onclick="saveBooking()">💾 Save to Command Center (private)</button>'
   +'<button class="btn btn-pri" onclick="genBooking()">📋 Copy Booking for Claude</button>'
   +'<div class="ai-msg" id="b-msg"></div>';
 }
@@ -784,6 +785,31 @@ function genBooking(){
   var nt=document.getElementById('b-notes').value.trim();if(nt)s+='\nNotes: '+nt;
   s+='\n\nPlease add to tracker and create QB deposit invoice ($'+dep+').';
   navigator.clipboard.writeText(s).then(function(){showMsg('b-msg','ok','✅ Copied! Paste to Claude in chat.')}).catch(function(){showMsg('b-msg','err','Copy failed — manually select the text.')});
+}
+async function saveBooking(){
+  var n=document.getElementById('b-name').value.trim();
+  var c=document.getElementById('b-contact').value.trim();
+  var d=document.getElementById('b-date').value;
+  if(!n||!d){showMsg('b-msg','err','Event name and date are required.');return}
+  var notes=document.getElementById('b-notes').value.trim();
+  var extra=[];
+  var ph=document.getElementById('b-phone').value.trim();if(ph)extra.push('Phone: '+ph);
+  var st=document.getElementById('b-start').value,en=document.getElementById('b-end').value;if(st&&en)extra.push('Time: '+st+'-'+en);
+  var loc=document.getElementById('b-loc').value.trim();if(loc)extra.push('Location: '+loc);
+  var g=document.getElementById('b-guests').value;if(g)extra.push('Guests: ~'+g);
+  var mn=document.getElementById('b-menu').value.trim();if(mn)extra.push('Menu: '+mn);
+  var src=document.getElementById('b-src').value;if(src)extra.push('Source: '+src);
+  if(extra.length)notes=(notes?notes+' | ':'')+extra.join(' | ');
+  var fields={
+    'Event Name':n,'Contact Name':c,'Contact Email':document.getElementById('b-email').value.trim(),
+    'Event Date':d,'Guaranteed Min':document.getElementById('b-gm').value||'','Status':'Booked','Notes':notes
+  };
+  showMsg('b-msg','busy','Saving to Command Center…');
+  var r=await apiCall({action:'addEvent',fields:fields});
+  if(r.success){
+    showMsg('b-msg','ok','✅ Private event created! Find it under Events to log supplies.');
+    setTimeout(function(){['b-name','b-contact','b-email','b-phone','b-date','b-start','b-end','b-guests','b-loc','b-gm','b-menu','b-notes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});loadData();},1800);
+  } else showMsg('b-msg','err',r.message||'Save failed.');
 }
 
 // ── COMPLETE ──
