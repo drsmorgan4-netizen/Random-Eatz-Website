@@ -221,6 +221,20 @@ textarea{resize:vertical;min-height:60px}
 <div class="ai-msg" id="sr-msg"></div>
 </div></div>
 
+<!-- Edit Community Event Modal -->
+<div class="modal-bg" id="m-editapp"><div class="modal">
+<div class="modal-head"><div><div class="modal-title">✏️ Edit Event</div><div class="modal-sub" id="ea-title"></div></div><button class="close-btn" onclick="closeModal('m-editapp')">✕</button></div>
+<div class="form-group"><label>Event Name</label><input id="ea-event" type="text"/></div>
+<div class="form-row"><div class="form-group"><label>Date</label><input id="ea-date" type="date"/></div>
+<div class="form-group"><label>End Date (optional)</label><input id="ea-enddate" type="date"/></div></div>
+<div class="form-group"><label>Location</label><input id="ea-location" type="text"/></div>
+<div class="form-row"><div class="form-group"><label>Time</label><input id="ea-time" type="text" placeholder="10am - 2pm"/></div>
+<div class="form-group"><label>Type</label><input id="ea-type" type="text" placeholder="Community"/></div></div>
+<div class="form-group"><label>Link (optional)</label><input id="ea-link" type="text" placeholder="Instagram / website"/></div>
+<button class="btn btn-pri" onclick="submitEditApp()" id="ea-btn">💾 Save Changes</button>
+<div class="ai-msg" id="ea-msg"></div>
+</div></div>
+
 <script>
 var EVENTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vQgUgqmkTYLwq4_4XK2FKHpwvfofDmhH6wpaj7WuetfE8wTxfTKBtFDGB_ON_JmwPJAe68_tONiYUSD/pub?gid=1785733774&single=true&output=csv";
 var CARTS_CSV="https://docs.google.com/spreadsheets/d/e/2PACX-1vTrZnnySyKl4YzGI59xAnFY7KG1uYJyiA-LPg_i3iFXZBGmD3k2lgFmaMIndYKy_SDIDFwd1pdxaTw9/pub?output=csv";
@@ -605,6 +619,7 @@ function renderAppearances(){
       var visible=(a.Show||'').toLowerCase()==='yes';
       var sheetRow=appearances.indexOf(a)+2;
       var invEvt=JSON.stringify({"Event Name":a.Event||'',"Event Date":a.Date||''}).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+      var appEdit=JSON.stringify({row:sheetRow,event:a.Event||'',date:a.Date||'',endDate:a["End Date"]||'',location:a.Location||'',time:a.Time||'',type:a.Type||'',link:a.Link||''}).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
 
       h+='<div class="event-card" style="border-left:4px solid '+bc+';opacity:'+(past?.65:1)+'">'
         +'<div class="event-inner">'
@@ -621,7 +636,9 @@ function renderAppearances(){
         +(a.Link?'<a href="'+esc(a.Link)+'" target="_blank" style="font-size:18px;text-decoration:none" title="Event link">🔗</a>':'')
         +'<label class="toggle"><input type="checkbox" '+(visible?'checked':'')+' onchange="toggleAppearance('+sheetRow+',this.checked)"><span class="slider"></span></label>'
         +'</div></div>'
-        +'<div class="event-actions" style="margin-top:10px;display:flex;gap:8px"><button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openInventory('+invEvt+')">📦 Log Supplies</button></div>'
+        +'<div class="event-actions" style="margin-top:10px;display:flex;gap:8px">'
+        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openEditApp('+appEdit+')">✏️ Edit</button>'
+        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openInventory('+invEvt+')">📦 Log Supplies</button></div>'
         +'</div></div>';
     });
   }
@@ -663,6 +680,35 @@ async function toggleAppearance(row,visible){
   }
   showMsg('app-msg',r.success?'ok':'err',r.success?'✅ Updated':r.message);
   setTimeout(function(){var e=document.getElementById('app-msg');if(e)e.style.display='none';loadData()},2000);
+}
+var eaRow=null;
+function openEditApp(o){
+  eaRow=o.row;
+  document.getElementById('ea-title').textContent=o.event||'';
+  document.getElementById('ea-event').value=o.event||'';
+  document.getElementById('ea-date').value=o.date||'';
+  document.getElementById('ea-enddate').value=o.endDate||'';
+  document.getElementById('ea-location').value=o.location||'';
+  document.getElementById('ea-time').value=o.time||'';
+  document.getElementById('ea-type').value=o.type||'';
+  document.getElementById('ea-link').value=o.link||'';
+  document.getElementById('ea-msg').style.display='none';
+  document.getElementById('m-editapp').classList.add('open');
+}
+async function submitEditApp(){
+  if(!eaRow)return;
+  showMsg('ea-msg','busy','Saving…');
+  var r=await apiCall({action:'updateAppearance',row:eaRow,
+    event:document.getElementById('ea-event').value.trim(),
+    date:document.getElementById('ea-date').value,
+    endDate:document.getElementById('ea-enddate').value,
+    location:document.getElementById('ea-location').value.trim(),
+    time:document.getElementById('ea-time').value.trim(),
+    type:document.getElementById('ea-type').value.trim(),
+    link:document.getElementById('ea-link').value.trim()
+  });
+  if(r.success){showMsg('ea-msg','ok','✅ Saved!');setTimeout(function(){closeModal('m-editapp');loadData()},1200)}
+  else showMsg('ea-msg','err',r.message||'Save failed.');
 }
 
 
