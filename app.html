@@ -619,6 +619,41 @@ function renderAppearances(){
     +'<div class="ai-msg" id="aa-msg"></div>'
     +'</div></div>';
 
+  // ── Private / booked events (from Event Tracker) — not shown in the public appearances feed ──
+  var privEvents=(events||[]).filter(function(ev){
+    var st=(ev.Status||'').toLowerCase();
+    return (ev["Event Name"]||'').trim() && st!=='completed' && st!=='cancelled';
+  }).sort(function(a,b){return new Date(a["Event Date"])-new Date(b["Event Date"])});
+  if(privEvents.length){
+    var bs='background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px';
+    h+='<div class="section-header" style="margin-top:0">🔒 Private / Booked Events</div>';
+    privEvents.forEach(function(ev){
+      var idx=events.indexOf(ev);
+      var pd=daysUntil(ev["Event Date"]),ppast=pd<0,ptoday=pd===0,psoon=pd>=1&&pd<=3;
+      var pbc=ppast?'#9CA3AF':ptoday?'#C8102E':psoon?'#F5A623':'#2D8A4E';
+      var ptb=ptoday?'<span class="b-today">NOW</span>':(psoon?'<span class="b-soon">'+pd+'d</span>':'');
+      h+='<div class="event-card" style="border-left:4px solid '+pbc+';opacity:'+(ppast?.7:1)+'">'
+        +'<div class="event-inner">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
+        +'<div style="flex:1;min-width:0">'
+        +'<div style="font-size:15px;font-weight:700;margin-bottom:4px">'+esc(ev["Event Name"]||"Untitled")+'</div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:13px;color:var(--mut)">'
+        +'<span>📅 '+fmtDate(ev["Event Date"])+ptb+'</span>'
+        +(ev["Contact Name"]?'<span>👤 '+esc(ev["Contact Name"])+'</span>':'')
+        +(ev["Guaranteed Min"]?'<span>💵 GM $'+esc(ev["Guaranteed Min"])+'</span>':'')
+        +'</div></div>'
+        +'<div>'+badge(ev.Status)+'</div>'
+        +'</div>'
+        +'<div class="event-actions" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'
+        +'<button class="btn-sm" style="'+bs+'" onclick="openEdit(events['+idx+'])">✏️ Edit</button>'
+        +'<button class="btn-sm" style="'+bs+'" onclick="openInventory(events['+idx+'])">📦 Log Supplies</button>'
+        +'<button class="btn-sm" style="'+bs+'" onclick="openComplete(events['+idx+'])">🏁 Complete</button>'
+        +'</div>'
+        +'</div></div>';
+    });
+    h+='<div class="section-header">📍 Public Events</div>';
+  }
+
   // Filter appearances — use end date for upcoming cutoff
   var sorted=[].concat(appearances).sort(function(a,b){return new Date(a.Date)-new Date(b.Date)});
   var filtered;
@@ -885,10 +920,17 @@ function openInventory(e){
   document.getElementById('mi-name').textContent=e["Event Name"]||"";
   var h='';
   INV_ITEMS.forEach(function(it){
-    h+='<div class="form-row" style="align-items:flex-end">'
-      +'<div class="form-group" style="flex:1.6"><label>&nbsp;</label><div style="padding:8px 0;font-weight:600">'+it.label+'</div></div>'
-      +'<div class="form-group"><label style="font-size:11px">Out</label><input type="number" min="0" class="inv-out" data-item="'+it.key+'" oninput="updInvCalc()" placeholder="0"/></div>'
-      +'<div class="form-group"><label style="font-size:11px">Back</label><input type="number" min="0" class="inv-back" data-item="'+it.key+'" oninput="updInvCalc()" placeholder="0"/></div>'
+    h+='<div style="border-bottom:1px solid var(--brd);padding:10px 0">'
+      +'<div style="font-weight:600;margin-bottom:6px">'+it.label+' <span style="color:var(--mut);font-weight:400;font-size:11px">('+it.unit+')</span></div>'
+      +'<div class="form-row" style="gap:6px">'
+      +'<div class="form-group" style="flex:1"><label style="font-size:10px">Out</label><input type="number" min="0" class="inv-out" data-item="'+it.key+'" oninput="updInvCalc()" placeholder="0"/></div>'
+      +'<div class="form-group" style="flex:1"><label style="font-size:10px">Back</label><input type="number" min="0" class="inv-back" data-item="'+it.key+'" oninput="updInvCalc()" placeholder="0"/></div>'
+      +'</div>'
+      +'<div class="form-row" style="gap:6px">'
+      +'<div class="form-group" style="flex:1"><label style="font-size:10px">Gave away</label><input type="number" min="0" class="inv-gave" data-item="'+it.key+'" oninput="updInvCalc()" placeholder="0"/></div>'
+      +'<div class="form-group" style="flex:1"><label style="font-size:10px">Threw away</label><input type="number" min="0" class="inv-threw" data-item="'+it.key+'" oninput="updInvCalc()" placeholder="0"/></div>'
+      +'<div class="form-group" style="flex:1"><label style="font-size:10px">Donated</label><input type="number" min="0" class="inv-donated" data-item="'+it.key+'" oninput="updInvCalc()" placeholder="0"/></div>'
+      +'</div>'
       +'</div>';
   });
   document.getElementById('mi-items').innerHTML=h;
@@ -911,24 +953,28 @@ function toggleWeather(i,btn){
   var w=WEATHER_TAGS[i],idx=selWeather.indexOf(w);
   if(idx===-1){selWeather.push(w);btn.classList.add('sel')}else{selWeather.splice(idx,1);btn.classList.remove('sel')}
 }
+function invField(cls,key){var el=document.querySelector('.'+cls+'[data-item="'+key+'"]');return Number(el&&el.value)||0}
 function updInvCalc(){
-  var cost=0;
+  var soldCost=0,wasteCost=0;
   document.querySelectorAll('.inv-out').forEach(function(inp){
     var key=inp.dataset.item,out=Number(inp.value)||0;
-    var backInp=document.querySelector('.inv-back[data-item="'+key+'"]');
-    var back=Number(backInp&&backInp.value)||0;
-    cost+=Math.max(out-back,0)*(ITEM_COSTS[key]||0);
+    var back=invField('inv-back',key),gave=invField('inv-gave',key),threw=invField('inv-threw',key),donated=invField('inv-donated',key);
+    var c=ITEM_COSTS[key]||0;
+    var used=Math.max(out-back,0);
+    var waste=Math.min(gave+threw+donated,used);
+    var sold=Math.max(used-waste,0);
+    soldCost+=sold*c;wasteCost+=waste*c;
   });
+  var food=soldCost+wasteCost;
   var rev=Number(document.getElementById('mi-revenue').value)||0;
-  document.getElementById('mi-calc').textContent='Estimated Food Cost: $'+cost.toFixed(2)+'   ·   Estimated Profit: $'+(rev-cost).toFixed(2);
+  document.getElementById('mi-calc').textContent='Food Cost $'+food.toFixed(2)+'  ·  Sold $'+soldCost.toFixed(2)+'  ·  Waste/Giveaway $'+wasteCost.toFixed(2)+'  ·  Profit $'+(rev-food).toFixed(2);
 }
 async function submitInventory(){
   var e=activeEvent;if(!e)return;
   var items={};
   document.querySelectorAll('.inv-out').forEach(function(inp){
     var key=inp.dataset.item;
-    var backInp=document.querySelector('.inv-back[data-item="'+key+'"]');
-    items[key]={out:Number(inp.value)||0,back:Number(backInp&&backInp.value)||0};
+    items[key]={out:Number(inp.value)||0,back:invField('inv-back',key),gave:invField('inv-gave',key),threw:invField('inv-threw',key),donated:invField('inv-donated',key)};
   });
   var payload={
     action:'saveEventInventory',
