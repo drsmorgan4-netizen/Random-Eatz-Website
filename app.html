@@ -410,11 +410,26 @@ function signOut(){
 }
 
 // ── DATA ──
+// Events load via the authenticated backend (private). Falls back to the published
+// CSV only if the API call fails, so the app keeps working during the transition.
+async function loadEventsPreferApi(){
+  if(API_URL&&AUTH_TOKEN){
+    try{
+      var resp=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getEvents',token:AUTH_TOKEN})});
+      var j=await resp.json();
+      if(j&&j.ok&&Array.isArray(j.events))return j.events;
+    }catch(e){/* fall through to CSV */}
+  }
+  try{
+    var t=await (await fetch(EVENTS_CSV)).text();
+    return Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[];
+  }catch(e){return[]}
+}
 async function loadData(){
   document.getElementById('ri').classList.add('spin');document.getElementById('rl').textContent='Loading';
   var r={events:[],carts:[],specials:[],appearances:[]};
   await Promise.all([
-    fetch(EVENTS_CSV).then(function(x){return x.text()}).then(function(t){r.events=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){}),
+    loadEventsPreferApi().then(function(list){r.events=list||[]}).catch(function(){}),
     fetch(CARTS_CSV).then(function(x){return x.text()}).then(function(t){r.carts=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){}),
     fetch(SPECIALS_CSV).then(function(x){return x.text()}).then(function(t){r.specials=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){}),
     fetch(APPEARANCES_CSV).then(function(x){return x.text()}).then(function(t){r.appearances=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){})
