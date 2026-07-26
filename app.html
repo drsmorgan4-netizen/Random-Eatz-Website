@@ -313,8 +313,21 @@ var calYear,calMonth,calSelected=null;
 (function(){var d=new Date();calYear=d.getFullYear();calMonth=d.getMonth()})();
 
 // ── HELPERS ──
-function daysUntil(d){if(!d)return Infinity;var dt=new Date(d);if(isNaN(dt))return Infinity;var n=new Date();n.setHours(0,0,0,0);dt.setHours(0,0,0,0);return Math.ceil((dt-n)/864e5)}
-function fmtDate(d){if(!d)return"";var dt=new Date(d);if(isNaN(dt))return d;return dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
+// Parse a date as LOCAL time. "2026-07-24" via new Date() is treated as UTC midnight,
+// which displays as the previous day in Pacific time — this avoids that off-by-one.
+function parseLocalDate(d){
+  if(!d)return null;
+  if(d instanceof Date)return isNaN(d)?null:d;
+  var s=String(d).trim();if(!s)return null;
+  var m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m)return new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+  var m2=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m2)return new Date(Number(m2[3]),Number(m2[1])-1,Number(m2[2]));
+  var dt=new Date(s);return isNaN(dt)?null:dt;
+}
+function dateVal(d){var dt=parseLocalDate(d);return dt?dt.getTime():0}
+function daysUntil(d){var dt=parseLocalDate(d);if(!dt)return Infinity;var n=new Date();n.setHours(0,0,0,0);dt.setHours(0,0,0,0);return Math.ceil((dt-n)/864e5)}
+function fmtDate(d){var dt=parseLocalDate(d);if(!dt)return d?String(d):"";return dt.toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric"})}
 function badge(s){var m={completed:["b-done","Completed"],booked:["b-booked","Booked"],pending:["b-booked","Pending"]};var r=m[(s||"").toLowerCase()]||["","Unknown"];return'<span class="badge '+r[0]+'">'+(r[1]||s)+'</span>'}
 function showMsg(id,cls,txt){var e=document.getElementById(id);if(!e)return;e.className='ai-msg '+cls;e.textContent=txt;e.style.display='block'}
 function closeModal(id){document.getElementById(id).classList.remove('open');activeEvent=null}
@@ -470,7 +483,7 @@ function renderCalendar(containerEvents){
   
   // Build event date lookup
   var evDates={};containerEvents.forEach(function(e){
-    var ed=new Date(e["Event Date"]);if(!isNaN(ed)){var k=ed.getFullYear()+'-'+(ed.getMonth()+1)+'-'+ed.getDate();
+    var ed=parseLocalDate(e["Event Date"]);if(ed){var k=ed.getFullYear()+'-'+(ed.getMonth()+1)+'-'+ed.getDate();
     if(!evDates[k])evDates[k]=[];evDates[k].push(e)}});
   
   var h='<div class="cal-nav"><button onclick="calPrev()">◀</button><div class="cal-month">'+mn[calMonth]+' '+calYear+'</div><button onclick="calNext()">▶</button></div>';
@@ -559,7 +572,7 @@ function toggleDet(idx){var e=document.getElementById('ed-'+idx);if(e)e.classLis
 // ── DASHBOARD ──
 function renderDash(){
   // Upcoming community appearances — use end date for cutoff
-  var upApp=appearances.filter(function(a){return (a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0}).sort(function(a,b){return new Date(a.Date)-new Date(b.Date)});
+  var upApp=appearances.filter(function(a){return (a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0}).sort(function(a,b){return dateVal(a.Date)-dateVal(b.Date)});
   var w7App=upApp.filter(function(a){return daysUntil(a.Date)<=7});
   var h='<div class="stat-grid">';
   h+='<div class="stat-card"><div class="stat-label">📍 Upcoming Events</div><div class="stat-value">'+upApp.length+'</div><div class="stat-sub">'+w7App.length+' this week</div></div>';
@@ -638,7 +651,7 @@ function renderAppearances(){
   var privEvents=(events||[]).filter(function(ev){
     var st=(ev.Status||'').toLowerCase();
     return (ev["Event Name"]||'').trim() && st!=='completed' && st!=='cancelled';
-  }).sort(function(a,b){return new Date(a["Event Date"])-new Date(b["Event Date"])});
+  }).sort(function(a,b){return dateVal(a["Event Date"])-dateVal(b["Event Date"])});
   if(privEvents.length){
     var bs='background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px';
     h+='<div class="section-header" style="margin-top:0">🔒 Private / Booked Events</div>';
@@ -670,7 +683,7 @@ function renderAppearances(){
   }
 
   // Filter appearances — use end date for upcoming cutoff
-  var sorted=[].concat(appearances).sort(function(a,b){return new Date(a.Date)-new Date(b.Date)});
+  var sorted=[].concat(appearances).sort(function(a,b){return dateVal(a.Date)-dateVal(b.Date)});
   var filtered;
   if(appFilter==='upcoming') filtered=sorted.filter(function(a){return (a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0});
   else if(appFilter==='hidden') filtered=sorted.filter(function(a){return (a.Show||'').toLowerCase()!=='yes'});
