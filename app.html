@@ -165,6 +165,8 @@ textarea{resize:vertical;min-height:60px}
 <textarea id="mc-post" rows="4"></textarea></div>
 <div class="info-box"><strong>This will generate:</strong><br>✓ Update tracker → Completed<br>✓ Thank-you email text with review link<br>✓ Google Business post text</div>
 <button class="btn btn-green" onclick="submitComplete()" id="mc-btn">⚡ Complete — Copy for Claude</button>
+<div style="border-top:1px solid var(--brd);margin:12px 0 10px"></div>
+<button class="btn btn-pri" onclick="closeModal('m-complete');openFollowUp(activeEvent)">💌 Follow Up — Thank-You & Next Year</button>
 <div class="ai-msg" id="mc-msg"></div>
 </div></div>
 
@@ -192,6 +194,21 @@ textarea{resize:vertical;min-height:60px}
 <div class="form-group"><label>Notes</label><textarea id="me-notes" rows="4"></textarea></div>
 <button class="btn btn-pri" onclick="submitEdit()" id="me-btn">💾 Save Changes</button>
 <div class="ai-msg" id="me-msg"></div>
+</div></div>
+
+<!-- Follow-Up Modal -->
+<div class="modal-bg" id="m-followup"><div class="modal">
+<div class="modal-head"><div><div class="modal-title">💌 Follow Up</div><div class="modal-sub" id="fu-name"></div></div><button class="close-btn" onclick="closeModal('m-followup')">✕</button></div>
+<div id="fu-to" style="font-size:13px;color:var(--mut);margin-bottom:12px"></div>
+<button class="btn btn-pri" style="margin-bottom:8px" onclick="fuAction('draftThankYou')">💌 Draft Thank-You + Review Link</button>
+<button class="btn btn-pri" style="margin-bottom:8px" onclick="fuAction('draftNextYear')">🔁 Draft "Same Time Next Year?" Ask</button>
+<div style="border-top:1px solid var(--brd);margin:12px 0 10px"></div>
+<label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px">
+<input type="checkbox" id="fu-annual" style="width:18px;height:18px"/> This event happens every year
+</label>
+<button class="btn btn-green" onclick="fuAction('scheduleFollowUp')">🗓️ Set 6-Month Reminder</button>
+<div style="font-size:12px;color:var(--mut);margin-top:8px">Adds a calendar reminder 6 months out (that's 6 months before this date next year) and records it in the tracker.</div>
+<div class="ai-msg" id="fu-msg"></div>
 </div></div>
 
 <!-- Inventory / Supplies Modal -->
@@ -551,6 +568,7 @@ function eCard(e,idx,compact){
   acts+='<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openEdit('+ej+')">✏️ Edit</button>';
   acts+='<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openInventory('+ej+')">📦 Supplies</button>';
   acts+='<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openPlan('+ej+')">🧮 Plan</button>';
+  acts+='<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openFollowUp('+ej+')">💌 Follow Up</button>';
   if(info.phone)acts+='<a class="btn-sm" href="tel:'+info.phone.replace(/[^\d+]/g,'')+'" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;flex:1;display:flex;align-items:center;justify-content:center;gap:6px">📞 Call</a>';
   
   var det='<div class="event-detail" id="ed-'+idx+'">'
@@ -676,6 +694,7 @@ function renderAppearances(){
         +'<button class="btn-sm" style="'+bs+'" onclick="openEdit(events['+idx+'])">✏️ Edit</button>'
         +'<button class="btn-sm" style="'+bs+'" onclick="openInventory(events['+idx+'])">📦 Log Supplies</button>'
         +'<button class="btn-sm" style="'+bs+'" onclick="openComplete(events['+idx+'])">🏁 Complete</button>'
+        +'<button class="btn-sm" style="'+bs+'" onclick="openFollowUp(events['+idx+'])">💌 Follow Up</button>'
         +'</div>'
         +'</div></div>';
     });
@@ -913,6 +932,34 @@ function submitComplete(){
 }
 
 // ── EDIT ──
+// ── POST-EVENT FOLLOW-UP ──
+var fuEvent=null;
+function openFollowUp(e){
+  fuEvent=e;
+  document.getElementById('fu-name').textContent=(e["Event Name"]||'')+(e["Event Date"]?' · '+fmtDate(e["Event Date"]):'');
+  var to=e["Contact Email"]||'';
+  document.getElementById('fu-to').textContent=to?('To: '+to):'⚠️ No contact email on this event — add one before drafting.';
+  var ann=document.getElementById('fu-annual');
+  if(ann)ann.checked=String(e.Annual||'').toLowerCase()==='yes';
+  var m=document.getElementById('fu-msg');if(m)m.style.display='none';
+  document.getElementById('m-followup').classList.add('open');
+}
+async function fuAction(action){
+  var e=fuEvent;if(!e)return;
+  var ann=document.getElementById('fu-annual');
+  var labels={draftThankYou:'Creating thank-you draft…',draftNextYear:'Creating next-year draft…',scheduleFollowUp:'Setting reminder…'};
+  showMsg('fu-msg','busy',labels[action]||'Working…');
+  var r=await apiCall({
+    action:action,
+    eventName:e["Event Name"]||'',
+    eventDate:e["Event Date"]||'',
+    contactName:e["Contact Name"]||'',
+    to:e["Contact Email"]||'',
+    annual:!!(ann&&ann.checked)
+  });
+  showMsg('fu-msg',r.success?'ok':'err',(r.success?'✅ ':'')+r.message);
+  if(r.success)setTimeout(function(){loadData()},1500);
+}
 function openEdit(e){
   activeEvent=e;document.getElementById('me-name').textContent=e["Event Name"]||"";
   document.getElementById('me-status').value=e.Status||"Booked";
