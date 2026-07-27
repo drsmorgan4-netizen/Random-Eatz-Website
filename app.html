@@ -935,7 +935,7 @@ function submitComplete(){
 // ── POST-EVENT FOLLOW-UP ──
 var fuEvent=null;
 function openFollowUp(e){
-  fuEvent=e;
+  fuEvent=e;fuPending={};
   document.getElementById('fu-name').textContent=(e["Event Name"]||'')+(e["Event Date"]?' · '+fmtDate(e["Event Date"]):'');
   var to=e["Contact Email"]||'';
   document.getElementById('fu-to').textContent=to?('To: '+to):'⚠️ No contact email on this event — add one before drafting.';
@@ -944,10 +944,12 @@ function openFollowUp(e){
   var m=document.getElementById('fu-msg');if(m)m.style.display='none';
   document.getElementById('m-followup').classList.add('open');
 }
+var fuPending={};
 async function fuAction(action){
   var e=fuEvent;if(!e)return;
   var ann=document.getElementById('fu-annual');
   var labels={draftThankYou:'Creating thank-you draft…',draftNextYear:'Creating next-year draft…',scheduleFollowUp:'Setting reminder…'};
+  var force=!!fuPending[action];
   showMsg('fu-msg','busy',labels[action]||'Working…');
   var r=await apiCall({
     action:action,
@@ -955,8 +957,15 @@ async function fuAction(action){
     eventDate:e["Event Date"]||'',
     contactName:e["Contact Name"]||'',
     to:e["Contact Email"]||'',
-    annual:!!(ann&&ann.checked)
+    annual:!!(ann&&ann.checked),
+    force:force
   });
+  if(!r.success&&/already drafted/i.test(r.message||'')){
+    fuPending[action]=true;
+    showMsg('fu-msg','err','⚠️ '+r.message);
+    return;
+  }
+  fuPending[action]=false;
   showMsg('fu-msg',r.success?'ok':'err',(r.success?'✅ ':'')+r.message);
   if(r.success)setTimeout(function(){loadData()},1500);
 }
