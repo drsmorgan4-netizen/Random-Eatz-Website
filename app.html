@@ -349,7 +349,7 @@ var INV_ITEMS=[
 // Fallback costs (per unit, from your Costco/US Chef Store pricing). The live values come from
 // the "Item Costs" tab in your Sheet once Code.gs is set up — edit prices there, not here.
 // NOTE: brisket is priced per POUND, not per piece — log brisket Out/Back in lbs, not count.
-var ITEM_COSTS={hotdog:1.4992,kielbasa:1.3845,brat:1.3845,jalapork:1.3845,jalabrat:1.3845,german:1.3845,vegandog:1.50,bun:0.2825,gfbun:0.75,sauerkraut:0.1798,lemonade:1.05,strawpuree:3.67,berrypuree:3.33,soda:0.4719,water:0.1125,chips:0.37,bacon:0.75,brisket:10.80,ketchup:2.00,mustard:2.00,mayo:2.50,relish:3.00,
+var ITEM_COSTS={hotdog:1.4992,kielbasa:1.3845,brat:1.3845,jalapork:1.3845,jalabrat:1.3845,german:1.3845,vegandog:1.50,bun:0.2825,gfbun:0.75,sauerkraut:0.1798,lemonade:0.42,strawpuree:3.67,berrypuree:3.33,soda:0.4719,water:0.1125,chips:0.37,bacon:0.75,brisket:10.80,ketchup:2.00,mustard:2.00,mayo:2.50,relish:3.00,
 coke:0.4719,dietcoke:0.4719,drpepper:0.4719,pepsi:0.4719,mtndew:0.4719,sprite:0.4719,
 lemons:0,creamcheese:0,jalapenos:0,foil:0,napkins:0,gloves:0,
 strawbag:11,berrybag:10,mango:12,mangopuree:4.00};
@@ -369,7 +369,23 @@ function loadItemCosts(){
   if(!API_URL||!AUTH_TOKEN)return;
   fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getItemCosts',token:AUTH_TOKEN})})
     .then(function(r){return r.json()})
-    .then(function(r){if(r&&r.ok&&r.costs)for(var k in r.costs){ITEM_COSTS[k]=Number(r.costs[k])||0}})
+    .then(function(r){
+      if(!r||!r.ok)return;
+      if(r.costs)for(var k in r.costs){ITEM_COSTS[k]=Number(r.costs[k])||0}
+      // The Item Costs sheet is the master list: any row we don't know yet
+      // becomes a tracked item (Label / Unit / Scope columns are optional).
+      (r.items||[]).forEach(function(it){
+        if(!it.key||!/^[a-z0-9]+$/.test(it.key))return;
+        if(INV_ITEMS.some(function(x){return x.key===it.key}))return;
+        var def={
+          key:it.key,
+          label:it.label||('📦 '+it.key.charAt(0).toUpperCase()+it.key.slice(1)),
+          unit:it.unit||'piece'
+        };
+        if(it.scope==='event'||it.scope==='stock')def.scope=it.scope;
+        INV_ITEMS.push(def);
+      });
+    })
     .catch(function(){/* keep fallback defaults */});
 }
 var calYear,calMonth,calSelected=null;
