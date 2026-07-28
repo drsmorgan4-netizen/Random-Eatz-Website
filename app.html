@@ -196,6 +196,22 @@ textarea{resize:vertical;min-height:60px}
 <div class="ai-msg" id="me-msg"></div>
 </div></div>
 
+<!-- Complete Public Event Modal -->
+<div class="modal-bg" id="m-appcomplete"><div class="modal">
+<div class="modal-head"><div><div class="modal-title">🏁 Complete Event</div><div class="modal-sub" id="ac-name"></div></div><button class="close-btn" onclick="closeModal('m-appcomplete')">✕</button></div>
+<div class="info-box">Adds this to your Event Tracker as Completed, so it shows up in profit tracking and follow-ups.</div>
+<div class="form-row"><div class="form-group"><label>Revenue ($)</label><input type="number" id="ac-revenue" placeholder="850"/></div>
+<div class="form-group"><label>Guests (approx)</label><input type="number" id="ac-guests" placeholder="150"/></div></div>
+<div class="form-row"><div class="form-group"><label>Contact Name</label><input id="ac-contact" placeholder="Organizer name"/></div>
+<div class="form-group"><label>Contact Email</label><input id="ac-email" type="email" placeholder="name@example.com"/></div></div>
+<div class="form-group"><label>Notes</label><textarea id="ac-notes" rows="2" placeholder="Anything worth remembering"></textarea></div>
+<label style="display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:10px">
+<input type="checkbox" id="ac-hide" style="width:18px;height:18px" checked/> Also hide from the public events list
+</label>
+<button class="btn btn-green" onclick="submitAppComplete()">🏁 Mark Complete</button>
+<div class="ai-msg" id="ac-msg"></div>
+</div></div>
+
 <!-- Follow-Up Modal -->
 <div class="modal-bg" id="m-followup"><div class="modal">
 <div class="modal-head"><div><div class="modal-title">💌 Follow Up</div><div class="modal-sub" id="fu-name"></div></div><button class="close-btn" onclick="closeModal('m-followup')">✕</button></div>
@@ -248,6 +264,8 @@ textarea{resize:vertical;min-height:60px}
 <div class="form-row"><div class="form-group"><label>Time</label><input id="ea-time" type="text" placeholder="10am - 2pm"/></div>
 <div class="form-group"><label>Type</label><input id="ea-type" type="text" placeholder="Community"/></div></div>
 <div class="form-group"><label>Link (optional)</label><input id="ea-link" type="text" placeholder="Instagram / website"/></div>
+<div class="form-row"><div class="form-group"><label>Contact Name</label><input id="ea-contact" type="text" placeholder="Organizer"/></div>
+<div class="form-group"><label>Contact Email</label><input id="ea-email" type="email" placeholder="name@example.com"/></div></div>
 <button class="btn btn-pri" onclick="submitEditApp()" id="ea-btn">💾 Save Changes</button>
 <div class="ai-msg" id="ea-msg"></div>
 </div></div>
@@ -475,7 +493,9 @@ async function loadData(){
       Show: a.Show||a.show||'',
       Type: a.Type||a.type||'',
       Time: a.Time||a.time||'',
-      "End Date": a["End Date"]||a["end date"]||a["End date"]||''
+      "End Date": a["End Date"]||a["end date"]||a["End date"]||'',
+      "Contact Name": a["Contact Name"]||a["contact name"]||'',
+      "Contact Email": a["Contact Email"]||a["contact email"]||''
     };
   });
   var upApp=appearances.filter(function(a){return(a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0}).length;
@@ -661,6 +681,8 @@ function renderAppearances(){
     +'<div class="form-group"><label>Location *</label><input id="aa-location" placeholder="e.g. Plantes Ferry Park"/></div>'
     +'<div class="form-row"><div class="form-group"><label>Type</label><select id="aa-type"><option>Concert</option><option>Tournament</option><option>Festival</option><option>Market</option><option>Community</option><option>Other</option></select></div>'
     +'<div class="form-group"><label>Link</label><input id="aa-link" placeholder="https://..." type="url"/></div></div>'
+    +'<div class="form-row"><div class="form-group"><label>Contact Name</label><input id="aa-contact" placeholder="Organizer"/></div>'
+    +'<div class="form-group"><label>Contact Email</label><input id="aa-email" type="email" placeholder="name@example.com"/></div></div>'
     +'<button class="btn btn-green" onclick="submitAppearance()">✅ Add Event</button>'
     +'<div class="ai-msg" id="aa-msg"></div>'
     +'</div></div>';
@@ -719,7 +741,7 @@ function renderAppearances(){
       var visible=(a.Show||'').toLowerCase()==='yes';
       var sheetRow=appearances.indexOf(a)+2;
       var invEvt=JSON.stringify({"Event Name":a.Event||'',"Event Date":a.Date||''}).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
-      var appEdit=JSON.stringify({row:sheetRow,event:a.Event||'',date:a.Date||'',endDate:a["End Date"]||'',location:a.Location||'',time:a.Time||'',type:a.Type||'',link:a.Link||''}).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+      var appEdit=JSON.stringify({row:sheetRow,event:a.Event||'',date:a.Date||'',endDate:a["End Date"]||'',location:a.Location||'',time:a.Time||'',type:a.Type||'',link:a.Link||'',contactName:a["Contact Name"]||'',contactEmail:a["Contact Email"]||''}).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
 
       h+='<div class="event-card" style="border-left:4px solid '+bc+';opacity:'+(past?.65:1)+'">'
         +'<div class="event-inner">'
@@ -739,7 +761,9 @@ function renderAppearances(){
         +'<div class="event-actions" style="margin-top:10px;display:flex;gap:8px">'
         +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openEditApp('+appEdit+')">✏️ Edit</button>'
         +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openInventory('+invEvt+')">📦 Log Supplies</button>'
-        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openPlan('+invEvt+')">🧮 Plan</button></div>'
+        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openPlan('+invEvt+')">🧮 Plan</button>'
+        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openAppComplete(apprByRow('+sheetRow+'))">🏁 Complete</button>'
+        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openFollowUp(apprAsEvent('+sheetRow+'))">💌 Follow Up</button></div>'
         +'</div></div>';
     });
   }
@@ -757,7 +781,9 @@ async function submitAppearance(){
   var link=document.getElementById('aa-link').value.trim();
   if(!ev||!dt||!loc){showMsg('aa-msg','err','Event name, start date, and location are required.');return}
   showMsg('aa-msg','busy','Adding...');
-  var data={action:'addAppearance',event:ev,date:dt,location:loc,link:link,type:type,time:time};
+  var cn=document.getElementById('aa-contact'),ce=document.getElementById('aa-email');
+  var data={action:'addAppearance',event:ev,date:dt,location:loc,link:link,type:type,time:time,
+    contactName:cn?cn.value.trim():'',contactEmail:ce?ce.value.trim():''};
   if(enddt)data.endDate=enddt;
   var r=await apiCall(data);
   if(r.success){
@@ -766,6 +792,7 @@ async function submitAppearance(){
     document.getElementById('aa-enddate').value='';
     document.getElementById('aa-location').value='';document.getElementById('aa-link').value='';
     document.getElementById('aa-time').value='';
+    ['aa-contact','aa-email'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
     setTimeout(function(){loadData()},2000);
   }else{
     showMsg('aa-msg','err',r.message);
@@ -793,6 +820,9 @@ function openEditApp(o){
   document.getElementById('ea-time').value=o.time||'';
   document.getElementById('ea-type').value=o.type||'';
   document.getElementById('ea-link').value=o.link||'';
+  var eac=document.getElementById('ea-contact'),eae=document.getElementById('ea-email');
+  if(eac)eac.value=o.contactName||'';
+  if(eae)eae.value=o.contactEmail||'';
   document.getElementById('ea-msg').style.display='none';
   document.getElementById('m-editapp').classList.add('open');
 }
@@ -806,7 +836,9 @@ async function submitEditApp(){
     location:document.getElementById('ea-location').value.trim(),
     time:document.getElementById('ea-time').value.trim(),
     type:document.getElementById('ea-type').value.trim(),
-    link:document.getElementById('ea-link').value.trim()
+    link:document.getElementById('ea-link').value.trim(),
+    contactName:(document.getElementById('ea-contact')||{}).value||'',
+    contactEmail:(document.getElementById('ea-email')||{}).value||''
   });
   if(r.success){showMsg('ea-msg','ok','✅ Saved!');setTimeout(function(){closeModal('m-editapp');loadData()},1200)}
   else showMsg('ea-msg','err',r.message||'Save failed.');
@@ -932,6 +964,57 @@ function submitComplete(){
 }
 
 // ── EDIT ──
+// Look up an appearance by its sheet row (row 2 = appearances[0]).
+function apprByRow(row){
+  var a=appearances[row-2]||{};
+  a.__row=row;
+  return a;
+}
+// Shape an appearance like an Event Tracker record so the Follow Up modal can use it.
+function apprAsEvent(row){
+  var a=apprByRow(row);
+  return {
+    "Event Name":a.Event||'',
+    "Event Date":a.Date||'',
+    "Contact Name":a["Contact Name"]||'',
+    "Contact Email":a["Contact Email"]||''
+  };
+}
+
+// ── COMPLETE A PUBLIC EVENT (creates an Event Tracker entry) ──
+var acAppearance=null;
+function openAppComplete(a){
+  acAppearance=a;
+  document.getElementById('ac-name').textContent=(a.Event||'')+(a.Date?' · '+fmtDate(a.Date):'');
+  document.getElementById('ac-revenue').value='';
+  document.getElementById('ac-guests').value='';
+  document.getElementById('ac-contact').value=a["Contact Name"]||'';
+  document.getElementById('ac-email').value=a["Contact Email"]||'';
+  document.getElementById('ac-notes').value='';
+  var hide=document.getElementById('ac-hide');if(hide)hide.checked=true;
+  var m=document.getElementById('ac-msg');if(m)m.style.display='none';
+  document.getElementById('m-appcomplete').classList.add('open');
+}
+async function submitAppComplete(){
+  var a=acAppearance;if(!a)return;
+  showMsg('ac-msg','busy','Adding to Event Tracker…');
+  var r=await apiCall({
+    action:'completeAppearance',
+    eventName:a.Event||'',
+    eventDate:a.Date||'',
+    location:a.Location||'',
+    contactName:document.getElementById('ac-contact').value.trim(),
+    to:document.getElementById('ac-email').value.trim(),
+    revenue:document.getElementById('ac-revenue').value,
+    guests:document.getElementById('ac-guests').value,
+    notes:document.getElementById('ac-notes').value.trim(),
+    hide:!!document.getElementById('ac-hide').checked,
+    row:a.__row||0
+  });
+  showMsg('ac-msg',r.success?'ok':'err',(r.success?'✅ ':'')+r.message);
+  if(r.success)setTimeout(function(){closeModal('m-appcomplete');loadData()},1500);
+}
+
 // ── POST-EVENT FOLLOW-UP ──
 var fuEvent=null;
 function openFollowUp(e){
