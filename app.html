@@ -1347,6 +1347,23 @@ async function renderShoppingList(){
     +'<div class="ai-msg" id="sl-msg"></div>'
     +'</div>';
 
+  // Row builder: checkbox + "got" quantity, so you can buy less than planned.
+  function row(opts){
+    var isTracked=!!opts.key;
+    return '<div class="event-card" style="border-left:4px solid '+opts.color+'"><div class="event-inner">'
+      +'<div style="display:flex;align-items:center;gap:10px">'
+      +'<input type="checkbox" class="sl-chk" style="width:20px;height:20px;flex:none"'
+      +' data-key="'+(opts.key||'')+'" data-id="'+(opts.id||'')+'" data-row="'+opts.rid+'"'
+      +' onchange="slToggle(\''+opts.rid+'\')"/>'
+      +'<div style="flex:1;min-width:0">'
+      +'<div style="font-weight:700">'+esc(opts.label)+'</div>'
+      +'<div style="font-size:12px;color:var(--mut)">'+opts.sub+'</div>'
+      +'</div>'
+      +'<div style="flex:none;width:74px"><input type="number" min="0" class="sl-got" id="got-'+opts.rid+'" value="'+(opts.suggest||'')+'" placeholder="got" style="text-align:center"/></div>'
+      +(isTracked?'':'<button class="btn-sm" style="flex:none;background:var(--bg);color:var(--red);border:1px solid var(--brd);border-radius:8px;padding:8px 10px;font-weight:700;cursor:pointer" onclick="removeShoppingItem(\''+opts.id+'\')">✕</button>')
+      +'</div></div></div>';
+  }
+
   // ── Auto-calculated needs ──
   var buy=(resp&&resp.ok&&resp.items?resp.items:[]).filter(function(x){return x.buy>0});
   h+='<div class="section-header" style="margin-top:0">📋 Needed for upcoming events</div>';
@@ -1355,8 +1372,8 @@ async function renderShoppingList(){
   }else if(!buy.length){
     h+='<div style="padding:10px;color:var(--green);font-weight:600">✅ Enough on hand for all planned events</div>';
   }else{
-    buy.forEach(function(x){
-      h+='<div class="event-card" style="border-left:4px solid #C8102E"><div class="event-inner"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:700">'+itemLabel(x.item)+'</div><div style="font-weight:700;color:var(--red)">Buy '+x.buy+'</div></div><div style="font-size:12px;color:var(--mut);margin-top:2px">Need '+x.needed+' · Have '+x.onHand+'</div></div></div>';
+    buy.forEach(function(x,i){
+      h+=row({rid:'n'+i,key:x.item,label:itemLabel(x.item),sub:'Need '+x.needed+' · Have '+x.onHand,suggest:x.buy,color:'#C8102E'});
     });
   }
 
@@ -1366,17 +1383,55 @@ async function renderShoppingList(){
   if(!extras.length){
     h+='<div style="color:var(--mut);padding:10px;font-size:13px">Nothing added yet.</div>';
   }else{
-    extras.forEach(function(x){
-      var lbl=itemLabel(x.item)||x.item;
-      h+='<div class="event-card" style="border-left:4px solid #2D8A4E"><div class="event-inner" style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
-        +'<div><div style="font-weight:700">'+esc(lbl)+'</div>'
-        +(x.qty?'<div style="font-size:12px;color:var(--mut)">Qty '+x.qty+(x.unit?' '+esc(x.unit):'')+'</div>':'')
-        +'</div>'
-        +'<button class="btn-sm" style="background:var(--bg);color:var(--red);border:1px solid var(--brd);border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer" onclick="removeShoppingItem(\''+x.id+'\')">✓ Got it</button>'
-        +'</div></div>';
+    extras.forEach(function(x,i){
+      var known=INV_ITEMS.some(function(it){return it.key===x.item});
+      var lbl=known?itemLabel(x.item):x.item;
+      h+=row({rid:'x'+i,key:known?x.item:'',id:x.id,label:lbl,
+        sub:(x.qty?('Want '+x.qty+(x.unit?' '+x.unit:'')):'Custom item')+(known?'':' · not stock-tracked'),
+        suggest:x.qty||'',color:'#2D8A4E'});
     });
   }
+
+  h+='<div style="font-size:12px;color:var(--mut);margin:10px 0">Tick what you bought and enter how many you actually got — the store may not have everything. Adding to stock updates your On Hand totals.</div>'
+    +'<button class="btn btn-green" onclick="purchaseChecked()">🛒 Add Purchased to Stock</button>'
+    +'<div class="ai-msg" id="sl-buy-msg"></div>';
+
   document.getElementById('shop-body').innerHTML=h;
+}
+// Ticking a row focuses its quantity box so you can correct the amount fast.
+function slToggle(rid){
+  var chk=document.querySelector('.sl-chk[data-row="'+rid+'"]');
+  var got=document.getElementById('got-'+rid);
+  if(chk&&chk.checked&&got&&!got.value)got.focus();
+}
+async function purchaseChecked(){
+  var checks=document.querySelectorAll('.sl-chk');
+  var items={},ids=[],count=0,untracked=0;
+  checks.forEach(function(c){
+    if(!c.checked)return;
+    var rid=c.dataset.row,key=c.dataset.key,id=c.dataset.id;
+    var got=document.getElementById('got-'+rid);
+    var qty=Number(got&&got.value)||0;
+    if(key&&qty>0){items[key]=(items[key]||0)+qty;count++}
+    else if(!key){untracked++}
+    if(id)ids.push(id);
+  });
+  if(!count&&!ids.length){showMsg('sl-buy-msg','err','Tick at least one item (and enter how many you got).');return}
+  showMsg('sl-buy-msg','busy','Updating stock…');
+  var ok=true,msg='';
+  if(count){
+    var r=await apiCall({action:'saveSupplyRun',items:items});
+    ok=r.success;msg=r.message||'';
+  }
+  // clear purchased manual items off the list
+  for(var i=0;i<ids.length;i++){await apiCall({action:'removeShoppingItem',id:ids[i]})}
+  if(ok){
+    showMsg('sl-buy-msg','ok','✅ Stock updated'+(count?(' for '+count+' item'+(count===1?'':'s')):'')+(untracked?(' · '+untracked+' custom item'+(untracked===1?'':'s')+' cleared'):''));
+    await loadStock();renderStock();
+    setTimeout(function(){renderShoppingList()},800);
+  }else{
+    showMsg('sl-buy-msg','err',msg||'Could not update stock.');
+  }
 }
 function slPickChanged(){
   var sel=document.getElementById('sl-pick');
