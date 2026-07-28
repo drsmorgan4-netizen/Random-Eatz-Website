@@ -717,6 +717,7 @@ function renderAppearances(){
         +'<button class="btn-sm" style="'+bs+'" onclick="openInventory(events['+idx+'])">📦 Log Supplies</button>'
         +'<button class="btn-sm" style="'+bs+'" onclick="openComplete(events['+idx+'])">🏁 Complete</button>'
         +'<button class="btn-sm" style="'+bs+'" onclick="openFollowUp(events['+idx+'])">💌 Follow Up</button>'
+        +'<button class="btn-sm" style="'+bs+';color:var(--red)" onclick="deleteEventRow(events['+idx+'][\'Event Name\'])">🗑️ Delete</button>'
         +'</div>'
         +'</div></div>';
     });
@@ -763,7 +764,8 @@ function renderAppearances(){
         +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openInventory('+invEvt+')">📦 Log Supplies</button>'
         +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openPlan('+invEvt+')">🧮 Plan</button>'
         +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openAppComplete(apprByRow('+sheetRow+'))">🏁 Complete</button>'
-        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openFollowUp(apprAsEvent('+sheetRow+'))">💌 Follow Up</button></div>'
+        +'<button class="btn-sm" style="background:var(--bg);color:var(--txt);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="openFollowUp(apprAsEvent('+sheetRow+'))">💌 Follow Up</button>'
+        +'<button class="btn-sm" style="background:var(--bg);color:var(--red);border:1px solid var(--brd);border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;flex:1;display:flex;align-items:center;justify-content:center;gap:6px" onclick="deleteAppearanceRow('+sheetRow+','+invEvt+'[\'Event Name\'])">🗑️ Delete</button></div>'
         +'</div></div>';
     });
   }
@@ -853,6 +855,10 @@ function renderOps(){
     var v=Object.values(c);var nm=v[0]||"Cart";var st=v[1]||"closed";var op=st.toLowerCase()==="open";
     h+='<div class="toggle-row"><div class="toggle-info"><div class="toggle-label">🚚 '+esc(nm)+'</div><div class="toggle-sub" id="cart-st-'+i+'">'+(op?'Open — serving customers':'Closed')+'</div></div>'
       +'<label class="toggle"><input type="checkbox" '+(op?'checked':'')+' onchange="toggleCart(\''+esc(nm)+'\',this.checked,'+i+')"><span class="slider"></span></label></div>';
+    // Log Supplies for an open cart day (Lowe's Broadway)
+    if(op&&/lowe/i.test(nm)&&/broadway/i.test(nm)){
+      h+='<button class="btn btn-pri" style="margin:-4px 0 14px" onclick="openCartDay(\''+esc(nm).replace(/'/g,"\\'")+'\')">📦 Log Supplies — Today\'s Cart Day</button>';
+    }
   });
   h+='<div class="section-header">🌭 Daily Specials</div>';
   if(!specials.length)h+='<div style="padding:20px;color:var(--mut)">No specials data</div>';
@@ -964,6 +970,33 @@ function submitComplete(){
 }
 
 // ── EDIT ──
+// ── DELETE (permanent — always confirms first) ──
+async function deleteEventRow(name){
+  if(!name)return;
+  if(!confirm('Delete "'+name+'"?\n\nThis permanently removes it from your Event Tracker and cannot be undone.'))return;
+  var r=await apiCall({action:'deleteEvent',eventName:name});
+  alert(r.success?('✅ '+r.message):('❌ '+(r.message||'Delete failed.')));
+  if(r.success)loadData();
+}
+async function deleteAppearanceRow(row,name){
+  if(!row)return;
+  if(!confirm('Delete "'+(name||'this event')+'"?\n\nThis permanently removes it from your community events and cannot be undone.'))return;
+  var r=await apiCall({action:'deleteAppearance',row:row});
+  alert(r.success?('✅ '+r.message):('❌ '+(r.message||'Delete failed.')));
+  if(r.success)loadData();
+}
+
+// ── CART DAY SUPPLIES (shown on Ops while a cart is open) ──
+function todayISO(){
+  var d=new Date();
+  function p(n){return (n<10?'0':'')+n}
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+function openCartDay(loc){
+  var iso=todayISO();
+  openInventory({"Event Name":loc+' - '+iso,"Event Date":iso});
+}
+
 // Look up an appearance by its sheet row (row 2 = appearances[0]).
 function apprByRow(row){
   var a=appearances[row-2]||{};
