@@ -320,9 +320,12 @@ var INV_ITEMS=[
   {key:'sauerkraut',label:'🥬 Sauerkraut',unit:'serving'},
   {key:'lemonade',label:'🍋 Lemonade (32oz)',unit:'cup'},
   {key:'lemons',label:'🍋 Lemons',unit:'bag'},
-  {key:'strawpuree',label:'🍓 Frozen Strawberries',unit:'bag'},
-  {key:'berrypuree',label:'🫐 Frozen Triple Berry',unit:'bag'},
-  {key:'mango',label:'🥭 Frozen Mango',unit:'bag'},
+  {key:'strawpuree',label:'🍓 Strawberry Purée',unit:'bottle',scope:'event'},
+  {key:'berrypuree',label:'🫐 Triple Berry Purée',unit:'bottle',scope:'event'},
+  {key:'mangopuree',label:'🥭 Mango Purée',unit:'bottle',scope:'event'},
+  {key:'strawbag',label:'🍓 Frozen Strawberries',unit:'bag',scope:'stock'},
+  {key:'berrybag',label:'🫐 Frozen Triple Berry',unit:'bag',scope:'stock'},
+  {key:'mango',label:'🥭 Frozen Mango',unit:'bag',scope:'stock'},
   {key:'coke',label:'🥤 Coke',unit:'can'},
   {key:'dietcoke',label:'🥤 Diet Coke',unit:'can'},
   {key:'drpepper',label:'🥤 Dr Pepper',unit:'can'},
@@ -346,9 +349,20 @@ var INV_ITEMS=[
 // Fallback costs (per unit, from your Costco/US Chef Store pricing). The live values come from
 // the "Item Costs" tab in your Sheet once Code.gs is set up — edit prices there, not here.
 // NOTE: brisket is priced per POUND, not per piece — log brisket Out/Back in lbs, not count.
-var ITEM_COSTS={hotdog:1.4992,kielbasa:1.3845,brat:1.3845,jalapork:1.3845,jalabrat:1.3845,german:1.3845,vegandog:1.50,bun:0.2825,gfbun:0.75,sauerkraut:0.1798,lemonade:1.05,strawpuree:2.50,berrypuree:2.50,soda:0.4719,water:0.1125,chips:0.37,bacon:0.75,brisket:10.80,ketchup:2.00,mustard:2.00,mayo:2.50,relish:3.00,
+var ITEM_COSTS={hotdog:1.4992,kielbasa:1.3845,brat:1.3845,jalapork:1.3845,jalabrat:1.3845,german:1.3845,vegandog:1.50,bun:0.2825,gfbun:0.75,sauerkraut:0.1798,lemonade:1.05,strawpuree:3.67,berrypuree:3.33,soda:0.4719,water:0.1125,chips:0.37,bacon:0.75,brisket:10.80,ketchup:2.00,mustard:2.00,mayo:2.50,relish:3.00,
 coke:0.4719,dietcoke:0.4719,drpepper:0.4719,pepsi:0.4719,mtndew:0.4719,sprite:0.4719,
-lemons:0,mango:0,creamcheese:0,jalapenos:0,foil:0,napkins:0,gloves:0};
+lemons:0,creamcheese:0,jalapenos:0,foil:0,napkins:0,gloves:0,
+strawbag:11,berrybag:10,mango:12,mangopuree:4.00};
+// Purée bottles are made at the commissary: 1 bag = 3 bottles.
+// Strawberry $11/bag = $3.67/bottle · Triple Berry $10/bag = $3.33/bottle · Mango $12/bag = $4.00/bottle
+var BAG_TO_BOTTLES=3;
+// Which items show where: 'event' = supplies/plan only, 'stock' = stock/supply-run only, default = both.
+function itemsFor(scope){
+  return INV_ITEMS.filter(function(it){
+    if(!it.scope)return true;
+    return it.scope===scope;
+  });
+}
 var WEATHER_TAGS=['☀️ Clear','🌧️ Rainy','🥶 Cold','💨 Windy','🔥 Hot'];
 var selWeather=[];
 function loadItemCosts(){
@@ -1133,7 +1147,7 @@ function openInventory(e){
   activeEvent=e;
   document.getElementById('mi-name').textContent=e["Event Name"]||"";
   var h='';
-  INV_ITEMS.forEach(function(it){
+  itemsFor('event').forEach(function(it){
     h+='<div style="border-bottom:1px solid var(--brd);padding:10px 0">'
       +'<div style="font-weight:600;margin-bottom:6px">'+it.label+' <span style="color:var(--mut);font-weight:400;font-size:11px">('+it.unit+')</span></div>'
       +'<div class="form-row" style="gap:6px">'
@@ -1228,7 +1242,7 @@ function renderStock(){
     h+='<div style="text-align:center;padding:30px;color:var(--mut)">Loading stock… tap Refresh if this stays.</div>';
   }else{
     var byKey={};(stock||[]).forEach(function(s){byKey[s.item]=s});
-    INV_ITEMS.forEach(function(it){
+    itemsFor('stock').forEach(function(it){
       var s=byKey[it.key]||{};
       var onHand=Number(s.onHand)||0,reorder=Number(s.reorder)||0,unit=s.unit||it.unit||'';
       var low=reorder>0&&onHand<=reorder;
@@ -1259,7 +1273,7 @@ async function saveStockLevels(){
 }
 function openSupplyRun(){
   var h='';
-  INV_ITEMS.forEach(function(it){
+  itemsFor('stock').forEach(function(it){
     h+='<div class="form-row" style="align-items:flex-end"><div class="form-group" style="flex:1.6"><label>&nbsp;</label><div style="padding:8px 0;font-weight:600">'+it.label+'</div></div>'
       +'<div class="form-group"><label style="font-size:11px">Received</label><input type="number" min="0" class="sr-recv" data-item="'+it.key+'" placeholder="0"/></div></div>';
   });
@@ -1285,7 +1299,7 @@ function openPlan(o){
   plEvent={eventName:nm,eventDate:dt};
   document.getElementById('pl-name').textContent=nm;
   var h='';
-  INV_ITEMS.forEach(function(it){
+  itemsFor('event').forEach(function(it){
     h+='<div class="form-row" style="align-items:flex-end"><div class="form-group" style="flex:1.6"><label>&nbsp;</label><div style="padding:8px 0;font-weight:600">'+it.label+'</div></div>'
       +'<div class="form-group"><label style="font-size:11px">Needed</label><input type="number" min="0" class="pl-need" data-item="'+it.key+'" placeholder="0"/></div></div>';
   });
@@ -1305,22 +1319,88 @@ async function submitPlan(){
 async function openShoppingList(){
   document.getElementById('shop-body').innerHTML='<div style="text-align:center;padding:20px;color:var(--mut)">Loading…</div>';
   document.getElementById('m-shop').classList.add('open');
-  var resp;
+  await renderShoppingList();
+}
+async function apiJson(action,extra){
   try{
-    var rr=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getShoppingList',token:AUTH_TOKEN})});
-    resp=await rr.json();
-  }catch(e){document.getElementById('shop-body').innerHTML='<div style="color:var(--red);padding:20px">Network error.</div>';return}
-  if(!resp||!resp.ok){document.getElementById('shop-body').innerHTML='<div style="color:var(--red);padding:20px">'+((resp&&resp.error)||'Failed to load. Add Items Needed to an event first.')+'</div>';return}
-  var items=resp.items||[];
-  var buy=items.filter(function(x){return x.buy>0});
+    var body=Object.assign({action:action,token:AUTH_TOKEN},extra||{});
+    var rr=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});
+    return await rr.json();
+  }catch(e){return null}
+}
+async function renderShoppingList(){
+  var resp=await apiJson('getShoppingList');
+  var ex=await apiJson('getShoppingExtras');
   var h='';
-  if(!buy.length){h='<div style="text-align:center;padding:20px;color:var(--green);font-weight:600">✅ You have enough on hand for all planned events!</div>';}
-  else{
+
+  // ── Add-an-item form ──
+  var opts='<option value="">— pick a tracked item —</option>';
+  INV_ITEMS.forEach(function(it){opts+='<option value="'+it.key+'">'+it.label+' ('+it.unit+')</option>'});
+  h+='<div style="background:var(--card);border:1px solid var(--brd);border-radius:12px;padding:12px;margin-bottom:14px">'
+    +'<div style="font-weight:700;margin-bottom:8px">➕ Add to list</div>'
+    +'<div class="form-group" style="margin-bottom:8px"><select id="sl-pick" onchange="slPickChanged()">'+opts+'</select></div>'
+    +'<div class="form-row" style="gap:6px">'
+    +'<div class="form-group" style="flex:2"><input id="sl-item" placeholder="or type anything (propane, ice…)"/></div>'
+    +'<div class="form-group" style="flex:1"><input id="sl-qty" type="number" min="0" placeholder="Qty"/></div>'
+    +'</div>'
+    +'<button class="btn btn-green" onclick="addShoppingItem()">➕ Add</button>'
+    +'<div class="ai-msg" id="sl-msg"></div>'
+    +'</div>';
+
+  // ── Auto-calculated needs ──
+  var buy=(resp&&resp.ok&&resp.items?resp.items:[]).filter(function(x){return x.buy>0});
+  h+='<div class="section-header" style="margin-top:0">📋 Needed for upcoming events</div>';
+  if(!resp||!resp.ok){
+    h+='<div style="color:var(--mut);padding:10px;font-size:13px">'+((resp&&resp.error)||'Add Items Needed to an event to see this.')+'</div>';
+  }else if(!buy.length){
+    h+='<div style="padding:10px;color:var(--green);font-weight:600">✅ Enough on hand for all planned events</div>';
+  }else{
     buy.forEach(function(x){
       h+='<div class="event-card" style="border-left:4px solid #C8102E"><div class="event-inner"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:700">'+itemLabel(x.item)+'</div><div style="font-weight:700;color:var(--red)">Buy '+x.buy+'</div></div><div style="font-size:12px;color:var(--mut);margin-top:2px">Need '+x.needed+' · Have '+x.onHand+'</div></div></div>';
     });
   }
+
+  // ── Manually added ──
+  var extras=(ex&&ex.ok&&ex.extras)?ex.extras:[];
+  h+='<div class="section-header">✍️ Added by you</div>';
+  if(!extras.length){
+    h+='<div style="color:var(--mut);padding:10px;font-size:13px">Nothing added yet.</div>';
+  }else{
+    extras.forEach(function(x){
+      var lbl=itemLabel(x.item)||x.item;
+      h+='<div class="event-card" style="border-left:4px solid #2D8A4E"><div class="event-inner" style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+        +'<div><div style="font-weight:700">'+esc(lbl)+'</div>'
+        +(x.qty?'<div style="font-size:12px;color:var(--mut)">Qty '+x.qty+(x.unit?' '+esc(x.unit):'')+'</div>':'')
+        +'</div>'
+        +'<button class="btn-sm" style="background:var(--bg);color:var(--red);border:1px solid var(--brd);border-radius:8px;padding:8px 12px;font-weight:700;cursor:pointer" onclick="removeShoppingItem(\''+x.id+'\')">✓ Got it</button>'
+        +'</div></div>';
+    });
+  }
   document.getElementById('shop-body').innerHTML=h;
+}
+function slPickChanged(){
+  var sel=document.getElementById('sl-pick');
+  var txt=document.getElementById('sl-item');
+  if(sel&&sel.value&&txt)txt.value='';
+}
+async function addShoppingItem(){
+  var sel=document.getElementById('sl-pick');
+  var txt=document.getElementById('sl-item');
+  var qty=document.getElementById('sl-qty');
+  var key=sel?sel.value:'';
+  var free=txt?txt.value.trim():'';
+  var item=key||free;
+  if(!item){showMsg('sl-msg','err','Pick an item or type one.');return}
+  var unit='';
+  if(key){for(var i=0;i<INV_ITEMS.length;i++){if(INV_ITEMS[i].key===key)unit=INV_ITEMS[i].unit}}
+  showMsg('sl-msg','busy','Adding…');
+  var r=await apiCall({action:'addShoppingItem',item:item,qty:qty?qty.value:0,unit:unit});
+  if(r.success){if(sel)sel.value='';if(txt)txt.value='';if(qty)qty.value='';await renderShoppingList();}
+  else showMsg('sl-msg','err',r.message||'Could not add.');
+}
+async function removeShoppingItem(id){
+  var r=await apiCall({action:'removeShoppingItem',id:id});
+  if(r.success)await renderShoppingList();
 }
 
 // ── POST ──
