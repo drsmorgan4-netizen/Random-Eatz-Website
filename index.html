@@ -139,15 +139,23 @@ section{padding:clamp(3rem,6vw,5.5rem) clamp(1.2rem,4vw,3rem)}
 .find-row .venue .time{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:.95rem;color:var(--ink);font-weight:500;margin-top:.4rem}
 .find-foot{text-align:center;margin-top:2.5rem;font-family:'Fraunces',serif;font-style:italic;font-size:1.2rem}
 .find-foot a{color:var(--rust);font-weight:600;text-decoration:underline}
-.appearances{max-width:780px;margin:2.2rem auto 0}
-.appearances .app-title{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:1.25rem;color:var(--rust);text-align:center;margin-bottom:1rem}
-.appearances .app-list{display:grid;gap:.7rem}
-.appearances .app-item{display:flex;justify-content:space-between;align-items:center;gap:1rem;background:var(--paper);border:1px solid #e6ddc8;border-radius:8px;padding:.9rem 1.2rem}
-.appearances .app-name{font-size:1.3rem;font-weight:600;color:var(--ink)}
-.appearances .app-loc{font-size:.9rem;color:#555}
-.appearances .app-time{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:.95rem;color:var(--ink);font-weight:500;margin-top:.2rem}
-.appearances .app-date{font-family:'Oswald',sans-serif;font-weight:700;color:var(--rust);white-space:nowrap;font-size:1.25rem;text-transform:uppercase;letter-spacing:.02em}
-.appearances .app-link{margin-left:.5rem;color:var(--rust);text-decoration:underline;font-size:.88rem}
+.appearances{max-width:920px;margin:2.2rem auto 0}
+.appearances .app-title{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.04em;font-size:1.25rem;color:var(--rust);text-align:center;margin-bottom:1.2rem}
+.appearances .app-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
+.appearances .app-card{background:#fff;border:1px solid #e6ddc8;border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.appearances .app-datebar{background:var(--rust);color:var(--paper);font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:.95rem;padding:.5rem .9rem}
+.appearances .app-body{padding:.9rem 1rem;display:flex;flex-direction:column;gap:.5rem;flex:1}
+.appearances .app-name{font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;line-height:1.15;font-size:1.05rem;color:var(--ink)}
+.appearances .app-meta{display:flex;align-items:center;gap:.4rem;font-size:.9rem;color:#555}
+.appearances .app-meta svg{flex:none;width:15px;height:15px;color:var(--rust)}
+.appearances .app-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.15rem}
+.appearances .app-free{background:var(--ink);color:var(--yellow);font-family:'Oswald',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:.05em;font-size:.72rem;padding:.2rem .6rem;border-radius:20px}
+.appearances .app-ig{display:inline-flex;align-items:center;gap:.3rem;background:#f3e9d6;color:var(--rust);font-size:.8rem;padding:.2rem .6rem;border-radius:20px;text-decoration:none}
+.appearances .app-ig svg{width:14px;height:14px}
+.appearances .app-link{display:inline-flex;align-items:center;color:var(--rust);text-decoration:underline;font-size:.8rem;padding:.2rem 0}
+.appearances .app-follow{text-align:center;margin-top:1.3rem;font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:.9rem}
+.appearances .app-follow a{color:var(--rust);text-decoration:none;font-weight:600}
+.appearances .app-follow a:hover{text-decoration:underline}
 
 .menu{background:var(--ink);color:var(--paper)}
 .menu .sec-title h2{color:#fff}
@@ -523,9 +531,9 @@ var APPEARANCES_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSu
         if(i===0 || !line.trim()) return;
         var p=parseCSVLine(line);
         if(p.length<5) return;
-        // A=Event, B=Date, C=Location, D=Link, E=Show, F=Type, G=Time, H=End Date
+        // A=Event,B=Date,C=Location,D=Link,E=Show,F=Type,G=Time,H=End Date,I=Contact,J=Email,K=Instagram,L=Free
         var name=p[0], dateStr=p[1], loc=p[2], link=p[3], show=(p[4]||"").toLowerCase();
-        var time=p[6]||"", endDateStr=p[7]||"";
+        var time=p[6]||"", endDateStr=p[7]||"", ig=(p[10]||"").trim(), freeRaw=(p[11]||"").trim().toLowerCase();
         if(show!=="yes" || !name || !dateStr) return;
         var d=new Date(dateStr+"T00:00:00");
         if(isNaN(d.getTime())) return;
@@ -537,21 +545,31 @@ var APPEARANCES_SHEET_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSu
           if(!isNaN(endD.getTime())) cutoff=endD; else endD=null;
         }
         if(cutoff<today) return; // hide past events
-        events.push({name:name, date:d, endDate:endD, dateStr:dateStr, loc:loc, link:link, time:time});
+        var isFree=(freeRaw==="yes"||freeRaw==="free"||freeRaw==="y"||freeRaw==="true"||freeRaw==="1"||freeRaw==="x");
+        events.push({name:name, date:d, endDate:endD, loc:loc, link:link, time:time, ig:ig, free:isFree});
       });
       events.sort(function(a,b){ return a.date-b.date; });
       if(!events.length){ box.innerHTML=""; return; }
-      var opts={month:'short',day:'numeric'};
+      var wd={weekday:'short'}, md={month:'numeric',day:'numeric'};
+      function esc(s){ return (s||"").replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+      var CLK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+      var PIN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6-5.4-6-10a6 6 0 0 1 12 0c0 4.6-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg>';
+      var IG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1.2"/></svg>';
       var html=events.map(function(e){
-        var pretty=e.date.toLocaleDateString('en-US',opts);
-        if(e.endDate && e.endDate.getTime()!==e.date.getTime()){
-          pretty+=' – '+e.endDate.toLocaleDateString('en-US',opts);
-        }
-        var linkHtml = e.link ? ' <a class="app-link" href="'+e.link.replace(/"/g,'&quot;')+'" target="_blank" rel="noopener">Details</a>' : '';
-        var timeHtml = e.time ? '<div class="app-time">'+e.time.replace(/</g,'&lt;')+'</div>' : '';
-        return '<div class="app-item"><div><div class="app-name">'+e.name.replace(/</g,'&lt;')+'</div><div class="app-loc">'+e.loc.replace(/</g,'&lt;')+linkHtml+'</div>'+timeHtml+'</div><div class="app-date">'+pretty+'</div></div>';
+        var dbar=e.date.toLocaleDateString('en-US',wd)+' · '+e.date.toLocaleDateString('en-US',md);
+        if(e.endDate && e.endDate.getTime()!==e.date.getTime()){ dbar+=' – '+e.endDate.toLocaleDateString('en-US',md); }
+        var meta='';
+        if(e.loc) meta+='<div class="app-meta">'+PIN+'<span>'+esc(e.loc)+'</span></div>';
+        if(e.time) meta+='<div class="app-meta">'+CLK+'<span>'+esc(e.time)+'</span></div>';
+        var tags='';
+        if(e.free) tags+='<span class="app-free">Free</span>';
+        if(e.ig){ var h=e.ig.replace(/^@+/,''); tags+='<a class="app-ig" href="https://instagram.com/'+encodeURIComponent(h)+'" target="_blank" rel="noopener">'+IG+'@'+esc(h)+'</a>'; }
+        if(e.link) tags+='<a class="app-link" href="'+esc(e.link)+'" target="_blank" rel="noopener">Details</a>';
+        var tagsHtml=tags?'<div class="app-tags">'+tags+'</div>':'';
+        return '<div class="app-card"><div class="app-datebar">'+dbar+'</div><div class="app-body"><div class="app-name">'+esc(e.name)+'</div>'+meta+tagsHtml+'</div></div>';
       }).join("");
-      box.innerHTML='<div class="app-title">Catch Us At</div><div class="app-list">'+html+'</div>';
+      var follow='<div class="app-follow"><a href="https://instagram.com/random.eatz.and.catering" target="_blank" rel="noopener">Follow @random.eatz.and.catering for the latest →</a></div>';
+      box.innerHTML='<div class="app-title">Upcoming Events</div><div class="app-list">'+html+'</div>'+follow;
     })
     .catch(function(){ box.innerHTML=""; });
 })();
