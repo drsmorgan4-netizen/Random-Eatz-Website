@@ -266,6 +266,8 @@ textarea{resize:vertical;min-height:60px}
 <div class="form-group"><label>Link (optional)</label><input id="ea-link" type="text" placeholder="Instagram / website"/></div>
 <div class="form-row"><div class="form-group"><label>Contact Name</label><input id="ea-contact" type="text" placeholder="Organizer"/></div>
 <div class="form-group"><label>Contact Email</label><input id="ea-email" type="email" placeholder="name@example.com"/></div></div>
+<div class="form-row"><div class="form-group"><label>Host Instagram</label><input id="ea-instagram" type="text" placeholder="@valleyassemblyspokane"/></div></div>
+<div class="form-group"><label style="display:flex;align-items:center;gap:8px;font-weight:400"><input id="ea-free" type="checkbox" style="width:auto"/> Free event — show a FREE badge on the website</label></div>
 <button class="btn btn-pri" onclick="submitEditApp()" id="ea-btn">💾 Save Changes</button>
 <div class="ai-msg" id="ea-msg"></div>
 </div></div>
@@ -539,7 +541,9 @@ async function loadData(){
       Time: a.Time||a.time||'',
       "End Date": a["End Date"]||a["end date"]||a["End date"]||'',
       "Contact Name": a["Contact Name"]||a["contact name"]||'',
-      "Contact Email": a["Contact Email"]||a["contact email"]||''
+      "Contact Email": a["Contact Email"]||a["contact email"]||'',
+      Instagram: a.Instagram||a.instagram||'',
+      Free: a.Free||a.free||''
     };
   });
   var upApp=appearances.filter(function(a){return(a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0}).length;
@@ -727,6 +731,8 @@ function renderAppearances(){
     +'<div class="form-group"><label>Link</label><input id="aa-link" placeholder="https://..." type="url"/></div></div>'
     +'<div class="form-row"><div class="form-group"><label>Contact Name</label><input id="aa-contact" placeholder="Organizer"/></div>'
     +'<div class="form-group"><label>Contact Email</label><input id="aa-email" type="email" placeholder="name@example.com"/></div></div>'
+    +'<div class="form-row"><div class="form-group"><label>Host Instagram (shows as a tag on the website)</label><input id="aa-instagram" placeholder="@valleyassemblyspokane"/></div></div>'
+    +'<div class="form-group"><label style="display:flex;align-items:center;gap:8px;font-weight:400"><input id="aa-free" type="checkbox" style="width:auto"/> Free event — show a FREE badge on the website</label></div>'
     +'<button class="btn btn-green" onclick="submitAppearance()">✅ Add Event</button>'
     +'<div class="ai-msg" id="aa-msg"></div>'
     +'</div></div>';
@@ -786,7 +792,7 @@ function renderAppearances(){
       var visible=(a.Show||'').toLowerCase()==='yes';
       var sheetRow=appearances.indexOf(a)+2;
       var invEvt=JSON.stringify({"Event Name":a.Event||'',"Event Date":a.Date||''}).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
-      var appEdit=JSON.stringify({row:sheetRow,event:a.Event||'',date:a.Date||'',endDate:a["End Date"]||'',location:a.Location||'',time:a.Time||'',type:a.Type||'',link:a.Link||'',contactName:a["Contact Name"]||'',contactEmail:a["Contact Email"]||''}).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
+      var appEdit=JSON.stringify({row:sheetRow,event:a.Event||'',date:a.Date||'',endDate:a["End Date"]||'',location:a.Location||'',time:a.Time||'',type:a.Type||'',link:a.Link||'',contactName:a["Contact Name"]||'',contactEmail:a["Contact Email"]||'',instagram:a.Instagram||'',free:a.Free||''}).replace(/'/g,"&#39;").replace(/"/g,"&quot;");
 
       h+='<div class="event-card" style="border-left:4px solid '+bc+';opacity:'+(past?.65:1)+'">'
         +'<div class="event-inner">'
@@ -798,6 +804,8 @@ function renderAppearances(){
         +'<span>📍 '+esc(a.Location||'')+'</span>'
         +(a.Time?'<span>🕐 '+esc(a.Time)+'</span>':'')
         +(a.Type?'<span>🏷️ '+esc(a.Type)+'</span>':'')
+        +(a.Free&&/^(yes|free|y|true|1|x)$/i.test(String(a.Free).trim())?'<span>🆓 Free</span>':'')
+        +(a.Instagram?'<span>📸 @'+esc(String(a.Instagram).replace(/^@+/,''))+'</span>':'')
         +'</div></div>'
         +'<div style="display:flex;align-items:center;gap:8px">'
         +(a.Link?'<a href="'+esc(a.Link)+'" target="_blank" style="font-size:18px;text-decoration:none" title="Event link">🔗</a>':'')
@@ -828,8 +836,10 @@ async function submitAppearance(){
   if(!ev||!dt||!loc){showMsg('aa-msg','err','Event name, start date, and location are required.');return}
   showMsg('aa-msg','busy','Adding...');
   var cn=document.getElementById('aa-contact'),ce=document.getElementById('aa-email');
+  var ig=document.getElementById('aa-instagram'),fr=document.getElementById('aa-free');
   var data={action:'addAppearance',event:ev,date:dt,location:loc,link:link,type:type,time:time,
-    contactName:cn?cn.value.trim():'',contactEmail:ce?ce.value.trim():''};
+    contactName:cn?cn.value.trim():'',contactEmail:ce?ce.value.trim():'',
+    instagram:ig?ig.value.trim():'',free:(fr&&fr.checked)?'Yes':''};
   if(enddt)data.endDate=enddt;
   var r=await apiCall(data);
   if(r.success){
@@ -838,7 +848,8 @@ async function submitAppearance(){
     document.getElementById('aa-enddate').value='';
     document.getElementById('aa-location').value='';document.getElementById('aa-link').value='';
     document.getElementById('aa-time').value='';
-    ['aa-contact','aa-email'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    ['aa-contact','aa-email','aa-instagram'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    var frc=document.getElementById('aa-free');if(frc)frc.checked=false;
     setTimeout(function(){loadData()},2000);
   }else{
     showMsg('aa-msg','err',r.message);
@@ -869,6 +880,9 @@ function openEditApp(o){
   var eac=document.getElementById('ea-contact'),eae=document.getElementById('ea-email');
   if(eac)eac.value=o.contactName||'';
   if(eae)eae.value=o.contactEmail||'';
+  var eai=document.getElementById('ea-instagram'),eaf=document.getElementById('ea-free');
+  if(eai)eai.value=o.instagram||'';
+  if(eaf)eaf.checked=/^(yes|free|y|true|1|x)$/i.test(String(o.free||'').trim());
   document.getElementById('ea-msg').style.display='none';
   document.getElementById('m-editapp').classList.add('open');
 }
@@ -884,7 +898,9 @@ async function submitEditApp(){
     type:document.getElementById('ea-type').value.trim(),
     link:document.getElementById('ea-link').value.trim(),
     contactName:(document.getElementById('ea-contact')||{}).value||'',
-    contactEmail:(document.getElementById('ea-email')||{}).value||''
+    contactEmail:(document.getElementById('ea-email')||{}).value||'',
+    instagram:(document.getElementById('ea-instagram')||{}).value||'',
+    free:(document.getElementById('ea-free')&&document.getElementById('ea-free').checked)?'Yes':''
   });
   if(r.success){showMsg('ea-msg','ok','✅ Saved!');setTimeout(function(){closeModal('m-editapp');loadData()},1200)}
   else showMsg('ea-msg','err',r.message||'Save failed.');
