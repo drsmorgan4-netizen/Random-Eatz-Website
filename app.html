@@ -169,6 +169,11 @@ textarea{resize:vertical;min-height:60px}
 </div>
 <button id="fab" onclick="toggleFab()" style="position:fixed;right:16px;bottom:calc(76px + var(--sab));width:56px;height:56px;border-radius:50%;background:var(--pri);color:#fff;border:none;font-size:28px;font-weight:400;cursor:pointer;z-index:151;box-shadow:0 4px 14px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;line-height:1">＋</button>
 
+<div class="modal-bg" id="m-checklist"><div class="modal">
+<div class="modal-head"><div><div class="modal-title">📋 Daily Setup Checklist</div><div class="modal-sub">Summer 2026 · resets daily</div></div><button class="close-btn" onclick="closeModal('m-checklist')">✕</button></div>
+<div id="cl-body"></div>
+</div></div>
+
 <!-- Complete Modal -->
 <div class="modal-bg" id="m-complete"><div class="modal">
 <div class="modal-head"><div><div class="modal-title">✅ Mark Complete</div><div class="modal-sub" id="mc-name"></div></div><button class="close-btn" onclick="closeModal('m-complete')">✕</button></div>
@@ -577,6 +582,109 @@ if(which==='book')showTab('book');
 else if(which==='event'){showTab('appearances');setTimeout(function(){var f=document.getElementById('app-add-form');if(f)f.classList.remove('hidden');window.scrollTo(0,0);},80);}
 else if(which==='run')openSupplyRun();
 else if(which==='shop')openShoppingList();}
+
+// ── DAILY SETUP CHECKLIST (resets each day, saved on this device) ──
+var CHECKLIST=[
+ {t:'🏠 Pre-Launch — From Home',items:[
+  "Blend frozen fruit-lemonade purées / chop onions!!!",
+  "Pack clean rags/tablecloths & food gloves",
+  "Cash box (w/ magnetic menu-board prices), change, charged Square, extra POS/charge box",
+  "Extra laminated menus for lunch or events (prices vary)",
+  "Garbage can & trash bags",
+  "Wear black T's & black apron (events/catering); solid-color tee for lunch service",
+  "Correct tables for the day — how many do you need?",
+  "CORRECT umbrella for cart (B/W or R/Y) & canopy if needed",
+  "Water jugs (lemonade) & Igloo/faucet water (pans)",
+  "Refilled condiments, fruit purées & lemonades?",
+  "In your cars: chip basket, chair, hot dog flag/base",
+  "Extra stainless containers & scoops, cups, lids, straws",
+  "Fire extinguisher & bungees for bread box",
+  "Clean cart dishes / griddle lid / knife / spatula / tongs / etc.",
+  "Charged batteries — water pump pack, double-D batteries, mister fan",
+  "Pack extra bin from carport — CHECK extras in bin DAILY!!"
+ ]},
+ {t:'📦 Extras Bin — check daily!',items:[
+  "Tin foil, napkins/holder, paper towels, paper boats, forks, gloves, scissors, extra knife, spoon (tallow), butter knife (cream cheese)",
+  "Ziplocs, disinfectant spray, bleach spray, hand soap",
+  "Lighters, lemonade hole punch",
+  "Black binder / business cards / Sharpie pens",
+  "Extra clean rags, tablecloths, and aprons",
+  "First aid kit / fire extinguisher"
+ ]},
+ {t:'✨ Occasional / Special Events',items:[
+  "String lights, extension cord / solar lights",
+  "Trash can & trash bags",
+  "Canopy, side walls, weights & extra tie-down straps",
+  "Tablecloths",
+  "Mist fan with bucket",
+  "Folding chairs",
+  "Extra lemonade sign, hot dog flag & base",
+  "Lemonade long board, bee-hive water jug, cutting board, lemon tray, cups/lids/straws, hole punch, sugar & scoop, muddler, smisher-smasher, large sharp knife, large lemon basket"
+ ]},
+ {t:'🍳 From Prep Kitchen',items:[
+  "ICE! ICE! ICE!",
+  "All links/sausages — all-beef, specialty pork, hot links, chicken brats, beef/pork brats, vegan dogs (2-3, keep frozen), buns, GF buns??",
+  "Condiments: onions, ketchup, mustard (variety), mayo, dill relish, sauerkraut, BBQ sauce, jalapeños, shredded cheese, bacon, cream cheese, chili cans (1-3), fruit purées, pre-made lemonades",
+  "Chips / sodas / water bottles",
+  "Water for steam tables",
+  "Wipe down & clean entire cart at location BEFORE shift starts!!"
+ ]},
+ {t:'🔚 End of Shift — Back to Kitchen',items:[
+  "Unload entire cart & car of all food items",
+  "Bring home dirty dish bin & condiment/purée bottles/containers if needed",
+  "Wipe down cart",
+  "Quick inventory of food & supplies for next day/shift",
+  "Leave fridge/freezer & REC shelves organized & ready for next shift!",
+  "Fill coolers w/ ICE (weekend & big event next day!!)"
+ ]},
+ {t:'🏡 End of Shift — Back at Home',items:[
+  "Wash dishes & reload into clean bin",
+  "All dirty rags/tablecloths/tees & aprons → laundry room",
+  "Return each umbrella to its own cart at END of service!!",
+  "Count cash / reconcile the till / hand out tips",
+  "Prepare extras bin for next shift!",
+  "Charge phones & POS"
+ ]}
+];
+var CL_CARTS=['Cart 1','Cart 2','Cart 3','Cart 4'];
+function clCart(){try{return localStorage.getItem('rec_cl_cart')||CL_CARTS[0]}catch(e){return CL_CARTS[0]}}
+function clSetCart(c){try{localStorage.setItem('rec_cl_cart',c)}catch(e){}}
+function clDay(){var d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();}
+function clKey(cart){return 'rec_checklist_'+clDay()+'_'+(cart||clCart());}
+function clState(cart){try{return JSON.parse(localStorage.getItem(clKey(cart))||'{}')}catch(e){return{}}}
+function clSave(s,cart){try{localStorage.setItem(clKey(cart),JSON.stringify(s))}catch(e){}}
+function checklistCounts(cart){var s=clState(cart),done=0,total=0;CHECKLIST.forEach(function(sec,si){sec.items.forEach(function(_,ii){total++;if(s[si+'-'+ii])done++})});return{done:done,total:total};}
+function openChecklist(){renderChecklist();document.getElementById('m-checklist').classList.add('open');}
+function renderChecklist(){
+  var cart=clCart(),s=clState(cart),c=checklistCounts(cart);
+  var h='<div style="font-size:12px;color:var(--mut);margin-bottom:6px">Which cart are you packing?</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">';
+  CL_CARTS.forEach(function(cn){
+    var cc=checklistCounts(cn),active=cn===cart,doneAll=cc.total&&cc.done===cc.total;
+    h+='<button onclick="clPick(\''+cn+'\')" style="flex:1;min-width:66px;border:1px solid '+(active?'var(--pri)':'var(--brd)')+';background:'+(active?'var(--pri)':'var(--card)')+';color:'+(active?'#fff':'var(--txt)')+';border-radius:10px;padding:8px 4px;font-size:13px;font-weight:700;cursor:pointer;line-height:1.3">'+cn+'<br><span style="font-size:10px;font-weight:600;opacity:.9">'+(doneAll?'done ✓':(cc.done?cc.done+'/'+cc.total:'—'))+'</span></button>';
+  });
+  h+='</div>';
+  h+='<div id="cl-prog-modal" style="font-size:13px;color:var(--mut);margin-bottom:10px">'+cart+': '+c.done+' of '+c.total+' done · resets each day.</div>';
+  CHECKLIST.forEach(function(sec,si){
+    h+='<div class="section-header"'+(si===0?' style="margin-top:4px"':'')+'>'+sec.t+'</div>';
+    sec.items.forEach(function(it,ii){
+      var id=si+'-'+ii,on=!!s[id];
+      h+='<label style="display:flex;align-items:flex-start;gap:10px;padding:9px 4px;border-bottom:1px solid var(--brd);cursor:pointer">'
+        +'<input type="checkbox" '+(on?'checked':'')+' onchange="toggleCheck(\''+id+'\',this.checked)" style="width:22px;height:22px;flex:none;margin-top:1px"/>'
+        +'<span id="cltxt-'+id+'" style="font-size:14px;line-height:1.4'+(on?';color:var(--mut);text-decoration:line-through':'')+'">'+esc(it)+'</span></label>';
+    });
+  });
+  h+='<button class="btn btn-pri" style="margin-top:16px" onclick="resetChecklist()">↺ Reset for today</button>';
+  document.getElementById('cl-body').innerHTML=h;
+}
+function toggleCheck(id,on){
+  var cart=clCart();var s=clState(cart);if(on)s[id]=1;else delete s[id];clSave(s,cart);
+  var t=document.getElementById('cltxt-'+id);if(t){t.style.textDecoration=on?'line-through':'';t.style.color=on?'var(--mut)':''}
+  var c=checklistCounts(cart);
+  var pm=document.getElementById('cl-prog-modal');if(pm)pm.textContent=cart+': '+c.done+' of '+c.total+' done · resets each day.';
+  var pd=document.getElementById('cl-prog');if(pd)pd.textContent=cart+' · '+(c.done?(c.done+' of '+c.total+' done today'):"tap to run through today's setup");
+}
+function clPick(cn){clSetCart(cn);renderChecklist();var pd=document.getElementById('cl-prog');if(pd){var cc=checklistCounts(cn);pd.textContent=cn+' · '+(cc.done?(cc.done+' of '+cc.total+' done today'):"tap to run through today's setup")}}
+function resetChecklist(){var cart=clCart();clSave({},cart);renderChecklist();if(curTab==='dash')renderDash();}
 function renderTab(){if(curTab==='dash')renderDash();else if(curTab==='ops')renderOps();else if(curTab==='book')renderBook();else if(curTab==='appearances')renderAppearances();else if(curTab==='stock')renderStock()}
 
 // ── CALENDAR ──
@@ -680,7 +788,12 @@ function renderDash(){
   // Upcoming community appearances — use end date for cutoff
   var upApp=appearances.filter(function(a){return (a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0}).sort(function(a,b){return dateVal(a.Date)-dateVal(b.Date)});
   var w7App=upApp.filter(function(a){return daysUntil(a.Date)<=7});
-  var h='<div class="stat-grid">';
+  var clCartCur=clCart(),clc=checklistCounts(clCartCur);
+  var h='<div onclick="openChecklist()" style="background:linear-gradient(135deg,#C8102E,#9B0D23);border-radius:12px;padding:14px;margin-bottom:14px;cursor:pointer;display:flex;justify-content:space-between;align-items:center">'
+    +'<div><div style="color:#fff;font-weight:700;font-size:15px">📋 Daily Setup Checklist</div>'
+    +'<div id="cl-prog" style="color:rgba(255,255,255,.9);font-size:12px">'+clCartCur+' · '+(clc.done?(clc.done+' of '+clc.total+' done today'):"tap to run through today's setup")+'</div></div>'
+    +'<div style="color:#fff;font-size:24px">›</div></div>';
+  h+='<div class="stat-grid">';
   h+='<div class="stat-card"><div class="stat-label">📍 Upcoming Events</div><div class="stat-value">'+upApp.length+'</div><div class="stat-sub">'+w7App.length+' this week</div></div>';
   h+='</div>';
   // Cart + specials quick toggles (moved here from the old Ops tab)
