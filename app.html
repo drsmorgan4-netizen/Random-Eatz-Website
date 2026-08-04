@@ -385,28 +385,22 @@ function itemsFor(scope){
 }
 var WEATHER_TAGS=['☀️ Clear','🌧️ Rainy','🥶 Cold','💨 Windy','🔥 Hot'];
 var selWeather=[];
+function applyItemCosts(r){
+  if(!r||!r.ok)return;
+  if(r.costs)for(var k in r.costs){ITEM_COSTS[k]=Number(r.costs[k])||0}
+  // The Item Costs sheet is the master list: any row we don't know yet becomes a tracked item.
+  (r.items||[]).forEach(function(it){
+    if(!it.key||!/^[a-z0-9]+$/.test(it.key))return;
+    if(INV_ITEMS.some(function(x){return x.key===it.key}))return;
+    var def={key:it.key,label:it.label||('📦 '+it.key.charAt(0).toUpperCase()+it.key.slice(1)),unit:it.unit||'piece'};
+    if(it.scope==='event'||it.scope==='stock')def.scope=it.scope;
+    INV_ITEMS.push(def);
+  });
+}
 function loadItemCosts(){
-  if(!API_URL||!AUTH_TOKEN)return;
-  fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getItemCosts',token:AUTH_TOKEN})})
-    .then(function(r){return r.json()})
-    .then(function(r){
-      if(!r||!r.ok)return;
-      if(r.costs)for(var k in r.costs){ITEM_COSTS[k]=Number(r.costs[k])||0}
-      // The Item Costs sheet is the master list: any row we don't know yet
-      // becomes a tracked item (Label / Unit / Scope columns are optional).
-      (r.items||[]).forEach(function(it){
-        if(!it.key||!/^[a-z0-9]+$/.test(it.key))return;
-        if(INV_ITEMS.some(function(x){return x.key===it.key}))return;
-        var def={
-          key:it.key,
-          label:it.label||('📦 '+it.key.charAt(0).toUpperCase()+it.key.slice(1)),
-          unit:it.unit||'piece'
-        };
-        if(it.scope==='event'||it.scope==='stock')def.scope=it.scope;
-        INV_ITEMS.push(def);
-      });
-    })
-    .catch(function(){/* keep fallback defaults */});
+  if(!API_URL||!AUTH_TOKEN)return Promise.resolve();
+  return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getItemCosts',token:AUTH_TOKEN})})
+    .then(function(r){return r.json()}).then(applyItemCosts).catch(function(){});
 }
 var calYear,calMonth,calSelected=null;
 (function(){var d=new Date();calYear=d.getFullYear();calMonth=d.getMonth()})();
@@ -491,7 +485,7 @@ async function handleGoogleSignIn(response){
       sessionStorage.setItem('rec_auth_email',r.email);
       document.getElementById('pw-screen').style.display='none';
       document.getElementById('header-sub').textContent='⚡ Signed in as '+r.email;
-      loadData();loadItemCosts();
+      loadData();
     }else{
       document.getElementById('pw-error').textContent=r.error||'Sign-in not authorized.';
       console.log('AUTH DEBUG:',r);
@@ -537,18 +531,8 @@ async function loadEventsPreferApi(){
     return Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[];
   }catch(e){return[]}
 }
-async function loadData(){
-  document.getElementById('ri').classList.add('spin');document.getElementById('rl').textContent='Loading';
-  var r={events:[],carts:[],specials:[],appearances:[]};
-  await Promise.all([
-    loadEventsPreferApi().then(function(list){r.events=list||[]}).catch(function(){}),
-    fetch(CARTS_CSV).then(function(x){return x.text()}).then(function(t){r.carts=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){}),
-    fetch(SPECIALS_CSV).then(function(x){return x.text()}).then(function(t){r.specials=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){}),
-    fetch(APPEARANCES_CSV).then(function(x){return x.text()}).then(function(t){r.appearances=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){})
-  ]);
-  events=r.events;carts=r.carts;specials=r.specials;
-  // Normalize appearance field names to match code expectations
-  appearances=r.appearances.map(function(a){
+function normalizeAppearances(arr){
+  return (arr||[]).map(function(a){
     return {
       Event: a["Event Name"]||a["event name"]||a.Event||a.event||'',
       Date: a.Date||a.date||'',
@@ -564,11 +548,51 @@ async function loadData(){
       Free: a.Free||a.free||''
     };
   });
+}
+// Returns false only if the backend says the sign-in is invalid/expired; true otherwise.
+async function loadData(){
+  document.getElementById('ri').classList.add('spin');document.getElementById('rl').textContent='Loading';
+  renderTab(); // paint the app shell instantly — data fills in as it arrives
+
+  // Public CSV feeds (carts/specials/appearances) load in parallel, independent of the slow backend
+  var pFeeds=Promise.all([
+    fetch(CARTS_CSV).then(function(x){return x.text()}).then(function(t){carts=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){}),
+    fetch(SPECIALS_CSV).then(function(x){return x.text()}).then(function(t){specials=Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data||[]}).catch(function(){}),
+    fetch(APPEARANCES_CSV).then(function(x){return x.text()}).then(function(t){appearances=normalizeAppearances(Papa.parse(t.trim(),{header:true,skipEmptyLines:true}).data)}).catch(function(){})
+  ]);
+
+  // Backend: try ONE combined bootstrap call (events + stock + item costs in a single round-trip)
+  var authOk=true,gotBoot=false;
+  try{
+    var b=await (await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'bootstrap',token:AUTH_TOKEN})})).json();
+    if(b&&b.ok&&b.bootstrap){
+      if(Array.isArray(b.events))events=b.events;
+      if(Array.isArray(b.stock))stock=b.stock;
+      applyItemCosts(b);
+      gotBoot=true;
+    }else if(b&&b.error&&/sign-in|authorized|expired/i.test(b.error)){
+      authOk=false;
+    }
+  }catch(e){/* network hiccup — fall through */}
+
+  if(!gotBoot&&authOk){
+    // Backend not updated yet (bootstrap unknown): verify sign-in once, then load the old way in parallel
+    try{ var wr=await (await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'whoami',token:AUTH_TOKEN})})).json(); if(!wr||!wr.ok)authOk=false; }catch(e){}
+    if(authOk){
+      await Promise.all([
+        loadEventsPreferApi().then(function(l){events=l||[]}).catch(function(){}),
+        loadStock(),
+        loadItemCosts()
+      ]);
+    }
+  }
+
+  await pFeeds;
   var upApp=appearances.filter(function(a){return(a.Show||'').toLowerCase()==='yes'&&appDaysLeft(a)>=0}).length;
   document.getElementById('sbar').textContent='Updated '+new Date().toLocaleTimeString()+' · '+upApp+' upcoming events · '+specials.length+' specials';
   document.getElementById('ri').classList.remove('spin');document.getElementById('rl').textContent='Refresh';
-  await loadStock();
   renderTab();
+  return authOk;
 }
 
 // ── NAV ──
@@ -1686,20 +1710,21 @@ function copyPost(){
 (async function(){
   var savedToken=sessionStorage.getItem('rec_auth_token');
   if(savedToken){
-    // Re-verify with the server rather than trusting the saved token blindly —
-    // it may have expired since the last page load.
-    try{
-      var resp=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'whoami',token:savedToken})});
-      var r=await resp.json();
-      if(r.ok){
-        AUTH_TOKEN=savedToken;AUTH_EMAIL=r.email;
-        document.getElementById('pw-screen').style.display='none';
-        document.getElementById('header-sub').textContent='⚡ Signed in as '+r.email;
-        loadData();loadItemCosts();
-        return;
-      }
-    }catch(e){/* fall through to sign-in screen */}
-    sessionStorage.removeItem('rec_auth_token');sessionStorage.removeItem('rec_auth_email');
+    // Optimistic restore: trust the saved sign-in and start loading immediately.
+    // loadData's first backend call validates the token; if it's expired, it returns
+    // false and we drop to the sign-in screen — no extra blocking round-trip up front.
+    AUTH_TOKEN=savedToken;
+    AUTH_EMAIL=sessionStorage.getItem('rec_auth_email')||'';
+    document.getElementById('pw-screen').style.display='none';
+    document.getElementById('header-sub').textContent='⚡ Signed in'+(AUTH_EMAIL?(' as '+AUTH_EMAIL):'');
+    var ok=await loadData();
+    if(ok===false){
+      AUTH_TOKEN=null;AUTH_EMAIL=null;
+      sessionStorage.removeItem('rec_auth_token');sessionStorage.removeItem('rec_auth_email');
+      document.getElementById('pw-screen').style.display='flex';
+      initGoogleSignIn();
+    }
+    return;
   }
   initGoogleSignIn();
 })();
