@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Charlemos — Spanish Practice</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --sand: #F3EDE2;
+    --clay: #C24E33;
+    --terra: #E08A4E;
+    --ink: #2B2118;
+    --olive: #5C6B4A;
+    --card: #FCF9F3;
+    --line: #E0D6C4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--sand);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 {
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    font-size: 22px;
+    color: var(--clay);
+    letter-spacing: -0.5px;
+  }
+  .brand span { font-size: 12px; color: var(--olive); font-weight: 500; }
+  .level-pill {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: var(--olive);
+    color: var(--card);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  #chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .msg { max-width: 82%; line-height: 1.5; }
+  .msg .bubble {
+    padding: 12px 15px;
+    border-radius: 16px;
+    font-size: 15px;
+  }
+  .tutor { align-self: flex-start; }
+  .tutor .bubble {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-bottom-left-radius: 4px;
+  }
+  .tutor .es { font-weight: 600; font-size: 16px; display: block; }
+  .tutor .en {
+    display: block;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--olive);
+    font-style: italic;
+  }
+  .tutor .tip {
+    display: block;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--line);
+    font-size: 12.5px;
+    color: var(--clay);
+  }
+  .me { align-self: flex-end; }
+  .me .bubble {
+    background: var(--terra);
+    color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .speak-btn {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--olive);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .speak-btn:hover { color: var(--clay); }
+  .options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .opt-btn {
+    background: var(--sand);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-size: 13.5px;
+    cursor: pointer;
+    color: var(--ink);
+    text-align: left;
+  }
+  .opt-btn:hover { border-color: var(--terra); background: #fff; }
+  .opt-btn .o-es { font-weight: 600; }
+  .opt-btn .o-en { display: block; font-size: 11.5px; color: var(--olive); }
+  footer {
+    padding: 12px 16px 16px;
+    border-top: 1px solid var(--line);
+    background: var(--card);
+    flex-shrink: 0;
+  }
+  .input-row { display: flex; gap: 8px; align-items: flex-end; }
+  #text {
+    flex: 1;
+    resize: none;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 11px 14px;
+    font-family: inherit;
+    font-size: 15px;
+    max-height: 100px;
+    background: var(--sand);
+    color: var(--ink);
+  }
+  #text:focus { outline: 2px solid var(--terra); border-color: transparent; }
+  .icon-btn {
+    border: none;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .1s;
+  }
+  .icon-btn:active { transform: scale(0.92); }
+  #mic { background: var(--sand); border: 1px solid var(--line); color: var(--ink); }
+  #mic.listening { background: var(--clay); color: #fff; animation: pulse 1.2s infinite; }
+  #send { background: var(--clay); color: #fff; }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(194,78,51,.4);} 50%{box-shadow:0 0 0 8px rgba(194,78,51,0);} }
+  .hint { font-size: 11.5px; color: var(--olive); text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div id="gate" style="height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px; text-align:center;">
+    <div style="font-family:'Fraunces',serif; font-weight:600; font-size:26px; color:var(--clay);">Charlemos</div>
+    <div style="font-size:13px; color:var(--olive); margin-top:-10px;">Enter your passcode</div>
+    <input id="passcodeInput" type="password" inputmode="numeric" maxlength="10" style="border:1px solid var(--line); border-radius:12px; padding:12px 16px; font-size:20px; text-align:center; letter-spacing:4px; width:180px; background:var(--card);">
+    <button id="unlockBtn" style="background:var(--clay); color:#fff; border:none; border-radius:12px; padding:12px 24px; font-size:15px; cursor:pointer;">Unlock</button>
+    <div id="gateError" style="color:var(--clay); font-size:13px; display:none;">Incorrect passcode, try again.</div>
+  </div>
+
+  <div id="app" style="display:none; height:100%; flex-direction:column;">
+  <header>
+    <div class="brand">
+      <h1>Charlemos</h1>
+      <span>Let's talk, in Spanish</span>
+    </div>
+    <div class="level-pill">Beginner</div>
+  </header>
+
+  <div id="chat"></div>
+
+  <footer>
+    <div class="input-row">
+      <button id="mic" class="icon-btn" title="Speak">🎤</button>
+      <textarea id="text" rows="1" placeholder="Type your answer, or tap a suggestion above…"></textarea>
+      <button id="send" class="icon-btn">➤</button>
+    </div>
+    <div class="hint">Tap 🎤 to speak · tap 🔊 to hear a line · or tap a suggested reply</div>
+  </footer>
+  </div>
+
+<script>
+const PASSCODE = "071019";
+const gateEl = document.getElementById('gate');
+const appEl = document.getElementById('app');
+const passInput = document.getElementById('passcodeInput');
+const gateError = document.getElementById('gateError');
+
+function tryUnlock() {
+  if (passInput.value === PASSCODE) {
+    gateEl.style.display = 'none';
+    appEl.style.display = 'flex';
+    sessionStorage.setItem('charlemos_unlocked', '1');
+    setTimeout(() => addTutor(NODES.start), 300);
+  } else {
+    gateError.style.display = 'block';
+    passInput.value = '';
+  }
+}
+document.getElementById('unlockBtn').onclick = tryUnlock;
+passInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+
+if (sessionStorage.getItem('charlemos_unlocked') === '1') {
+  gateEl.style.display = 'none';
+  appEl.style.display = 'flex';
+}
+
+const chat = document.getElementById('chat');
+const textEl = document.getElementById('text');
+const sendBtn = document.getElementById('send');
+const micBtn = document.getElementById('mic');
+
+const NODES = {
+  start: {
+    es: "¡Hola! Me llamo Ana. ¿Cómo estás?",
+    en: "Hi! My name is Ana. How are you?",
+    tip: "Tap a reply below, or say it yourself.",
+    options: [
+      { es: "Estoy bien", en: "I'm good", next: "bien" },
+      { es: "Estoy cansado", en: "I'm tired", next: "cansado" },
+      { es: "¿Y tú?", en: "And you?", next: "y_tu" }
+    ]
+  },
+  bien: {
+    es: "¡Qué bien! Me alegro. ¿Cómo te llamas?",
+    en: "That's great! I'm glad. What's your name?",
+    tip: "\"Me llamo...\" means \"My name is...\"",
+    options: [ { es: "Me llamo David", en: "My name is David", next: "nombre_david" } ]
+  },
+  cansado: {
+    es: "Ay, lo siento. ¿Trabajaste mucho hoy?",
+    en: "Oh, I'm sorry. Did you work a lot today?",
+    tip: "\"Trabajé\" means \"I worked.\"",
+    options: [
+      { es: "Sí, trabajé mucho", en: "Yes, I worked a lot", next: "trabajo_intro" },
+      { es: "No, un poco", en: "No, a little", next: "trabajo_intro" }
+    ]
+  },
+  y_tu: {
+    es: "Yo estoy muy bien, gracias. ¿Cómo te llamas?",
+    en: "I'm very good, thanks. What's your name?",
+    tip: "\"Me llamo...\" means \"My name is...\"",
+    options: [ { es: "Me llamo David", en: "My name is David", next: "nombre_david" } ]
+  },
+  nombre_david: {
+    es: "Mucho gusto, David. ¿Dónde trabajas?",
+    en: "Nice to meet you, David. Where do you work?",
+    tip: "\"Trabajo en...\" means \"I work at...\"",
+    options: [ { es: "Trabajo en un carrito de hot dogs", en: "I work at a hot dog cart", next: "trabajo_intro" } ]
+  },
+  trabajo_intro: {
+    es: "¡Qué interesante! ¿Te gusta tu trabajo?",
+    en: "How interesting! Do you like your work?",
+    tip: "\"Me gusta\" means \"I like it\" — ends in A, not O.",
+    options: [
+      { es: "Sí, me gusta mucho", en: "Yes, I like it a lot", next: "familia" },
+      { es: "A veces es difícil", en: "Sometimes it's hard", next: "familia" }
+    ]
+  },
+  familia: {
+    es: "Entiendo. ¿Trabajas con tu familia?",
+    en: "I understand. Do you work with your family?",
+    tip: "\"Hijos\" means \"sons\" or \"children.\"",
+    options: [
+      { es: "Sí, trabajo con mis hijos", en: "Yes, I work with my sons", next: "hijos_nombres" },
+      { es: "No, trabajo solo", en: "No, I work alone", next: "comida" }
+    ]
+  },
+  hijos_nombres: {
+    es: "¡Qué bonito! ¿Cómo se llaman?",
+    en: "How nice! What are their names?",
+    tip: "\"Se llaman...\" means \"Their names are...\"",
+    options: [ { es: "Se llaman Seth y Sam", en: "Their names are Seth and Sam", next: "comida" } ]
+  },
+  comida: {
+    es: "Perfecto. Cambiemos de tema. ¿Qué comes hoy?",
+    en: "Perfect. Let's change topics. What are you eating today?",
+    tip: "\"Como...\" means \"I eat...\"",
+    options: [
+      { es: "Como un hot dog", en: "I'm eating a hot dog", next: "comida_bien" },
+      { es: "No sé todavía", en: "I don't know yet", next: "comida_bien" }
+    ]
+  },
+  comida_bien: {
+    es: "¡Buena elección! ¿Quieres seguir practicando?",
+    en: "Good choice! Do you want to keep practicing?",
+    tip: "\"Sí, quiero\" means \"Yes, I want to.\"",
+    options: [
+      { es: "Sí, quiero", en: "Yes, I want to", next: "start" },
+      { es: "No, gracias", en: "No, thank you", next: "despedida" }
+    ]
+  },
+  despedida: {
+    es: "¡Muy bien, David! Hasta la próxima.",
+    en: "Very good, David! Until next time.",
+    tip: "You can always come back and start again.",
+    options: [ { es: "Adiós, Ana", en: "Goodbye, Ana", next: "start" } ]
+  }
+};
+
+let currentNode = NODES.start;
+
+function addTutor(node) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg tutor';
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  b.innerHTML = `<span class="es">${node.es}</span><span class="en">${node.en}</span>` +
+                (node.tip ? `<span class="tip">💡 ${node.tip}</span>` : '');
+  wrap.appendChild(b);
+
+  const sp = document.createElement('button');
+  sp.className = 'speak-btn';
+  sp.innerHTML = '🔊 Escuchar';
+  sp.onclick = () => speak(node.es);
+  wrap.appendChild(sp);
+
+  if (node.options && node.options.length) {
+    const opts = document.createElement('div');
+    opts.className = 'options';
+    node.options.forEach(o => {
+      const btn = document.createElement('button');
+      btn.className = 'opt-btn';
+      btn.innerHTML = `<span class="o-es">${o.es}</span><span class="o-en">${o.en}</span>`;
+      btn.onclick = () => choose(o);
+      opts.appendChild(btn);
+    });
+    wrap.appendChild(opts);
+  }
+
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+  speak(node.es);
+}
+
+function addMe(txt) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg me';
+  wrap.innerHTML = `<div class="bubble">${txt}</div>`;
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function choose(option) {
+  addMe(option.es);
+  setTimeout(() => { currentNode = NODES[option.next]; addTutor(currentNode); }, 500);
+}
+
+function speak(txt) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(txt);
+  u.lang = 'es-ES';
+  u.rate = 0.85;
+  const voices = speechSynthesis.getVoices();
+  const esVoice = voices.find(v => v.lang.startsWith('es'));
+  if (esVoice) u.voice = esVoice;
+  window.speechSynthesis.speak(u);
+}
+
+function normalize(s) {
+  return s.toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim();
+}
+
+function handleFreeText(raw) {
+  addMe(raw);
+  const norm = normalize(raw);
+  let best = null, bestScore = 0;
+  if (currentNode.options) {
+    currentNode.options.forEach(o => {
+      const words = normalize(o.es).split(/\s+/).filter(w => w.length > 1);
+      let score = 0;
+      words.forEach(w => { if (norm.includes(w)) score++; });
+      if (score > bestScore) { bestScore = score; best = o; }
+    });
+  }
+  setTimeout(() => {
+    if (best && bestScore > 0) {
+      currentNode = NODES[best.next];
+      addTutor(currentNode);
+    } else {
+      addTutor({
+        es: "No estoy segura de eso. ¡Prueba una opción!",
+        en: "I'm not sure about that. Try one of the options!",
+        tip: "Tap a suggested reply below, or try saying it again.",
+        options: currentNode.options
+      });
+    }
+  }, 400);
+}
+
+function send() {
+  const val = textEl.value.trim();
+  if (!val) return;
+  textEl.value = '';
+  textEl.style.height = 'auto';
+  handleFreeText(val);
+}
+
+sendBtn.onclick = send;
+textEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+textEl.addEventListener('input', () => {
+  textEl.style.height = 'auto';
+  textEl.style.height = Math.min(textEl.scrollHeight, 100) + 'px';
+});
+
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recog;
+let isListening = false;
+
+if (SR) {
+  recog = new SR();
+  recog.lang = 'es-ES';
+  recog.interimResults = false;
+  recog.onresult = e => {
+    const said = e.results[0][0].transcript;
+    isListening = false;
+    micBtn.classList.remove('listening');
+    handleFreeText(said);
+  };
+  recog.onend = () => { isListening = false; micBtn.classList.remove('listening'); };
+  recog.onerror = () => { isListening = false; micBtn.classList.remove('listening'); };
+  micBtn.onclick = () => {
+    if (isListening) {
+      recog.stop();
+      return;
+    }
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    try {
+      isListening = true;
+      micBtn.classList.add('listening');
+      recog.start();
+    } catch (err) {
+      // Already-started guard: reset state instead of throwing
+      isListening = false;
+      micBtn.classList.remove('listening');
+    }
+  };
+} else {
+  micBtn.onclick = () => alert('Voice input needs Chrome or Safari. You can still type or tap suggestions.');
+}
+
+window.addEventListener('load', () => {
+  if (window.speechSynthesis) speechSynthesis.getVoices();
+  if (sessionStorage.getItem('charlemos_unlocked') === '1') {
+    setTimeout(() => addTutor(NODES.start), 400);
+  }
+});
+</script>
+</body>
+</html>
