@@ -151,12 +151,14 @@ textarea{resize:vertical;min-height:60px}
 <div id="v-book" class="hidden"></div>
 <div id="v-appearances" class="hidden"></div>
 <div id="v-stock" class="hidden"></div>
+<div id="v-money" class="hidden"></div>
 </div>
 
 <nav class="bottom-nav">
 <button class="nav-btn active" onclick="showTab('dash')" id="n-dash"><span class="nav-icon">🏠</span>Today</button>
 <button class="nav-btn" onclick="showTab('appearances')" id="n-appearances"><span class="nav-icon">📍</span>Events</button>
 <button class="nav-btn" onclick="showTab('stock')" id="n-stock"><span class="nav-icon">📦</span>Supplies</button>
+<button class="nav-btn" onclick="showTab('money')" id="n-money"><span class="nav-icon">💵</span>Money</button>
 </nav>
 
 <div id="fab-menu" class="hidden" onclick="toggleFab()" style="position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:150">
@@ -596,7 +598,7 @@ async function loadData(){
 }
 
 // ── NAV ──
-function showTab(t){curTab=t;['dash','ops','book','appearances','stock'].forEach(function(x){
+function showTab(t){curTab=t;['dash','ops','book','appearances','stock','money'].forEach(function(x){
 var v=document.getElementById('v-'+x);if(v)v.classList.toggle('hidden',x!==t);
 var n=document.getElementById('n-'+x);if(n)n.classList.toggle('active',x===t);});
 window.scrollTo(0,0);renderTab()}
@@ -711,7 +713,7 @@ function toggleCheck(id,on){
 }
 function clPick(cn){clSetCart(cn);renderChecklist();var pd=document.getElementById('cl-prog');if(pd){var cc=checklistCounts(cn);pd.textContent=cn+' · '+(cc.done?(cc.done+' of '+cc.total+' done today'):"tap to run through today's setup")}}
 function resetChecklist(){var cart=clCart();clSave({},cart);renderChecklist();if(curTab==='dash')renderDash();}
-function renderTab(){if(curTab==='dash')renderDash();else if(curTab==='ops')renderOps();else if(curTab==='book')renderBook();else if(curTab==='appearances')renderAppearances();else if(curTab==='stock')renderStock()}
+function renderTab(){if(curTab==='dash')renderDash();else if(curTab==='ops')renderOps();else if(curTab==='book')renderBook();else if(curTab==='appearances')renderAppearances();else if(curTab==='stock')renderStock();else if(curTab==='money')renderMoney()}
 
 // ── CALENDAR ──
 function renderCalendar(containerEvents){
@@ -1428,6 +1430,228 @@ async function submitInventory(){
   var r=await apiCall(payload);
   if(r.success){showMsg('mi-msg','ok','✅ '+r.message);loadStock();setTimeout(function(){closeModal('m-inventory')},2500)}
   else{showMsg('mi-msg','err',r.message||'Save failed.')}
+}
+
+// ── MONEY: TIP LOG + CONTRACTOR / 1099 LOG ──
+var tips=[],tipsByPerson=[],tipsOwed=0,tipPeople=['Seth','Sam','David','Robin','Split','Pooled'],tipsLoaded=false;
+var conPays=[],conBy=[],conThreshold=600,conLoaded=false;
+var moneyView='tips';
+
+function money(n){return '$'+(Number(n)||0).toFixed(2)}
+function moneyTab(v){moneyView=v;renderMoney()}
+function yes(v){return /^y/i.test(String(v||'').trim())}
+function today10(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+
+async function loadTips(){
+  if(!API_URL||!AUTH_TOKEN)return;
+  try{
+    var resp=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getTips',token:AUTH_TOKEN})});
+    var r=await resp.json();
+    if(r&&r.ok){tips=r.tips||[];tipsByPerson=r.byPerson||[];tipsOwed=r.owedTotal||0;if(r.people&&r.people.length)tipPeople=r.people;tipsLoaded=true}
+  }catch(e){}
+}
+async function loadContractors(){
+  if(!API_URL||!AUTH_TOKEN)return;
+  try{
+    var resp=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({action:'getContractors',token:AUTH_TOKEN})});
+    var r=await resp.json();
+    if(r&&r.ok){conPays=r.payments||[];conBy=r.byContractor||[];conThreshold=r.threshold||600;conLoaded=true}
+  }catch(e){}
+}
+
+function renderMoney(){
+  var el=document.getElementById('v-money');if(!el)return;
+  if(moneyView==='tips'&&!tipsLoaded&&AUTH_TOKEN){loadTips().then(function(){if(curTab==='money')renderMoney()})}
+  if(moneyView==='contractors'&&!conLoaded&&AUTH_TOKEN){loadContractors().then(function(){if(curTab==='money')renderMoney()})}
+  var h='<div class="filters" style="margin-top:0">'
+    +'<button class="fbtn'+(moneyView==='tips'?' active':'')+'" onclick="moneyTab(\'tips\')">💵 Tips</button>'
+    +'<button class="fbtn'+(moneyView==='contractors'?' active':'')+'" onclick="moneyTab(\'contractors\')">🧾 Contractors</button>'
+    +'</div>';
+  h+=(moneyView==='tips')?tipsHtml():conHtml();
+  el.innerHTML=h;
+}
+
+// ── TIPS ──
+function tipsHtml(){
+  if(!tipsLoaded)return '<div style="text-align:center;padding:30px;color:var(--mut)">Loading tips…</div>';
+  var h='<div class="section-header" style="margin-top:0">👥 By Person</div>';
+  h+='<div class="info-box">Balance Owed = tips assigned but not yet run through QB Payroll.</div>';
+  var shown=tipsByPerson.filter(function(p){return p.assigned>0});
+  if(!shown.length)h+='<div style="padding:16px;color:var(--mut)">No tips logged yet.</div>';
+  else{
+    h+='<div class="stat-grid">';
+    shown.forEach(function(p){
+      h+='<div class="stat-card"><div class="stat-label">'+esc(p.person)+'</div>'
+        +'<div class="stat-value" style="color:'+(p.balance>0?'var(--pri)':'var(--txt)')+'">'+money(p.balance)+'</div>'
+        +'<div class="stat-sub">owed · '+money(p.assigned)+' assigned · '+money(p.paid)+' paid</div></div>';
+    });
+    h+='</div>';
+    if(tipsOwed>0)h+='<div class="warn-box">Still to run through payroll: <strong>'+money(tipsOwed)+'</strong></div>';
+  }
+
+  h+='<div class="section-header">➕ Log a Tip</div>';
+  h+='<div class="form-row">'
+    +'<div class="form-group"><label>Date</label><input id="t-date" type="date" value="'+today10()+'" onchange="tipDateHint()"/></div>'
+    +'<div class="form-group"><label>Amount to this person ($)</label><input id="t-amount" type="number" step="0.01" placeholder="300"/></div></div>';
+  h+='<div class="form-row">'
+    +'<div class="form-group"><label>Assigned To</label><select id="t-person">'
+      +tipPeople.map(function(p){return '<option>'+esc(p)+'</option>'}).join('')+'</select></div>'
+    +'<div class="form-group"><label>Total Tip ($) <span style="color:var(--mut);font-weight:400">optional</span></label><input id="t-total" type="number" step="0.01" placeholder="982.76"/></div></div>';
+  h+='<div class="form-group"><label>Source</label><input id="t-source" placeholder="Square card tips · QB Invoice #1073 (card) · Cash jar"/></div>';
+  h+='<div class="form-group"><label>Event / Location</label><input id="t-event" placeholder="Lowe&#39;s Broadway"/></div>';
+  h+='<div class="form-group"><label>Notes</label><input id="t-notes" placeholder="Split detail, who else shared it, etc."/></div>';
+  h+='<div id="t-hint" class="info-box hidden"></div>';
+  h+='<div class="info-box">Splitting one tip between people? Log it once per person, same Total Tip on each — that is how the Rose Lawther $982.76 is recorded.</div>';
+  h+='<button class="btn btn-pri" onclick="submitTip()">💵 Log Tip</button>';
+  h+='<div class="ai-msg" id="tip-msg"></div>';
+
+  h+='<div class="section-header">📋 Recent Tips</div>';
+  var rows=tips.slice().reverse().slice(0,25);
+  if(!rows.length)h+='<div style="padding:16px;color:var(--mut)">Nothing logged yet.</div>';
+  rows.forEach(function(t){
+    var paid=yes(t['Paid on Paycheck?']);
+    h+='<div class="event-card"><div class="event-inner">'
+      +'<div class="event-name">'+esc(String(t['Assigned To']||'—'))+' · '+money(t['Amount'])+'</div>'
+      +'<div class="event-meta">'+esc(String(t['Date']||''))+(t['Day']?' ('+esc(String(t['Day']))+')':'')
+        +(t['Source']?' · '+esc(String(t['Source'])):'')+'</div>'
+      +(t['Event / Location']?'<div class="event-meta">'+esc(String(t['Event / Location']))+'</div>':'')
+      +(t['Notes']?'<div class="event-notes">'+esc(String(t['Notes']))+'</div>':'')
+      +'<div style="margin-top:8px">'+(paid
+        ?'<span class="badge b-done">Paid on paycheck'+(t['Paycheck Date']?' · '+esc(String(t['Paycheck Date'])):'')+'</span>'
+        :'<button class="btn btn-sm btn-blue" onclick="markTipPaid('+t._row+')">Mark paid on paycheck</button>')
+      +'</div></div></div>';
+  });
+  return h;
+}
+
+// Monday card tips go to Seth — pre-selects, still overridable.
+function tipDateHint(){
+  var d=document.getElementById('t-date'),hint=document.getElementById('t-hint');
+  if(!d||!hint)return;
+  var dt=d.value?new Date(d.value+'T12:00:00'):null;
+  if(dt&&!isNaN(dt.getTime())&&dt.getDay()===1){
+    var sel=document.getElementById('t-person');
+    if(sel&&tipPeople.indexOf('Seth')>=0)sel.value='Seth';
+    hint.className='info-box';
+    hint.innerHTML='📌 Monday — card tips go to <strong>Seth</strong>. Set for you; change it if this one is different.';
+  }else{hint.className='info-box hidden';hint.innerHTML=''}
+}
+
+async function submitTip(){
+  var amount=document.getElementById('t-amount').value;
+  if(!amount){showMsg('tip-msg','err','Amount is required.');return}
+  showMsg('tip-msg','','Saving…');
+  var r=await apiCall({action:'addTip',
+    date:document.getElementById('t-date').value,
+    source:document.getElementById('t-source').value,
+    event:document.getElementById('t-event').value,
+    totalTip:document.getElementById('t-total').value,
+    person:document.getElementById('t-person').value,
+    amount:amount,
+    notes:document.getElementById('t-notes').value});
+  if(!r.success){showMsg('tip-msg','err',r.message);return}
+  // Re-render first (it rebuilds the form), then show the confirmation so
+  // the message survives instead of being wiped by the redraw.
+  tipsLoaded=false;await loadTips();if(curTab==='money')renderMoney();
+  showMsg('tip-msg','ok','✅ '+r.message);
+}
+
+async function markTipPaid(row){
+  var r=await apiCall({action:'updateTip',row:row,updates:{
+    'Paid on Paycheck?':'Yes','Paycheck Date':today10(),'Added to QB Payroll?':'Yes'}});
+  if(r.success){tipsLoaded=false;await loadTips();if(curTab==='money')renderMoney()}
+  else showMsg('tip-msg','err',r.message);
+}
+
+// ── CONTRACTORS / 1099 ──
+function conHtml(){
+  if(!conLoaded)return '<div style="text-align:center;padding:30px;color:var(--mut)">Loading contractors…</div>';
+  var h='<div class="section-header" style="margin-top:0">🧾 1099 Watch</div>';
+  h+='<div class="info-box">Anyone paid '+money(conThreshold)+' or more this year needs a W-9 on file and a 1099 at year end.</div>';
+  if(!conBy.length)h+='<div style="padding:16px;color:var(--mut)">No contractor payments logged yet.</div>';
+  else{
+    h+='<div class="stat-grid">';
+    conBy.forEach(function(c){
+      h+='<div class="stat-card"><div class="stat-label">'+esc(c.name)+'</div>'
+        +'<div class="stat-value" style="color:'+(c.over?'var(--pri)':'var(--txt)')+'">'+money(c.ytd)+'</div>'
+        +'<div class="stat-sub">YTD · '+c.payments+' payment'+(c.payments===1?'':'s')+'</div>'
+        +'<div style="margin-top:8px">'
+          +(c.w9?'<span class="badge b-done">W-9 ✓</span>':'<span class="badge b-today">No W-9</span>')
+          +(c.over?' <span class="badge b-soon">Over '+money(conThreshold)+'</span>':'')
+        +'</div></div>';
+    });
+    h+='</div>';
+    var need=conBy.filter(function(c){return c.action});
+    if(need.length)h+='<div class="warn-box">⚠️ Before year end: <strong>'
+      +need.map(function(c){return esc(c.name)}).join(', ')
+      +'</strong> — at or over the threshold without a W-9 or the 1099 flag set.</div>';
+  }
+
+  h+='<div class="section-header">➕ Log a Payment</div>';
+  h+='<div class="form-row">'
+    +'<div class="form-group"><label>Contractor Name</label><input id="c-name" placeholder="Christina Lilly"/></div>'
+    +'<div class="form-group"><label>Amount ($)</label><input id="c-amount" type="number" step="0.01" placeholder="180"/></div></div>';
+  h+='<div class="form-row">'
+    +'<div class="form-group"><label>Date Worked</label><input id="c-date" type="date" value="'+today10()+'"/></div>'
+    +'<div class="form-group"><label>Date Paid</label><input id="c-paid" type="date" value="'+today10()+'"/></div></div>';
+  h+='<div class="form-row">'
+    +'<div class="form-group"><label>Payment Method</label><select id="c-method">'
+      +['Cash','Check','Zelle','Venmo','Square','Other'].map(function(m){return '<option>'+m+'</option>'}).join('')
+      +'</select></div>'
+    +'<div class="form-group"><label>Event / Location</label><input id="c-event" placeholder="Sat 9/12"/></div></div>';
+  h+='<div class="form-group"><label>Work Description</label><input id="c-work" placeholder="Event help"/></div>';
+  h+='<div class="form-group"><label>Notes</label><input id="c-notes" placeholder="How to code it in QB, W-9 status, etc."/></div>';
+  h+='<button class="btn btn-pri" onclick="submitContractor()">🧾 Log Payment</button>';
+  h+='<div class="ai-msg" id="con-msg"></div>';
+
+  h+='<div class="section-header">📋 Recent Payments</div>';
+  var rows=conPays.slice().reverse().slice(0,25);
+  if(!rows.length)h+='<div style="padding:16px;color:var(--mut)">Nothing logged yet.</div>';
+  rows.forEach(function(p){
+    h+='<div class="event-card"><div class="event-inner">'
+      +'<div class="event-name">'+esc(String(p['Contractor Name']||'—'))+' · '+money(p['Amount'])+'</div>'
+      +'<div class="event-meta">'+esc(String(p['Date Worked']||''))
+        +(p['Payment Method']?' · '+esc(String(p['Payment Method'])):'')
+        +(p['Work Description']?' · '+esc(String(p['Work Description'])):'')+'</div>'
+      +(p['Notes']?'<div class="event-notes">'+esc(String(p['Notes']))+'</div>':'')
+      +'<div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">'
+        +(yes(p['W-9 on File?'])
+          ?'<span class="badge b-done">W-9 ✓</span>'
+          :'<button class="btn btn-sm btn-blue" onclick="setConField('+p._row+',\'W-9 on File?\',\'Yes\')">W-9 received</button>')
+        +(yes(p['1099 Vendor?'])
+          ?'<span class="badge b-done">1099 vendor</span>'
+          :'<button class="btn btn-sm btn-blue" onclick="setConField('+p._row+',\'1099 Vendor?\',\'Yes\')">Flag 1099</button>')
+        +(yes(p['Entered in QB?'])
+          ?'<span class="badge b-done">In QB ✓</span>'
+          :'<button class="btn btn-sm btn-blue" onclick="setConField('+p._row+',\'Entered in QB?\',\'Yes\')">Mark entered in QB</button>')
+      +'</div></div></div>';
+  });
+  return h;
+}
+
+async function submitContractor(){
+  var name=(document.getElementById('c-name').value||'').trim();
+  var amount=document.getElementById('c-amount').value;
+  if(!name){showMsg('con-msg','err','Contractor name is required.');return}
+  if(!amount){showMsg('con-msg','err','Amount is required.');return}
+  showMsg('con-msg','','Saving…');
+  var r=await apiCall({action:'addContractor',name:name,amount:amount,
+    dateWorked:document.getElementById('c-date').value,
+    datePaid:document.getElementById('c-paid').value,
+    method:document.getElementById('c-method').value,
+    event:document.getElementById('c-event').value,
+    work:document.getElementById('c-work').value,
+    notes:document.getElementById('c-notes').value});
+  if(!r.success){showMsg('con-msg','err',r.message);return}
+  conLoaded=false;await loadContractors();if(curTab==='money')renderMoney();
+  showMsg('con-msg','ok','✅ '+r.message);
+}
+
+async function setConField(row,field,val){
+  var u={};u[field]=val;
+  var r=await apiCall({action:'updateContractor',row:row,updates:u});
+  if(r.success){conLoaded=false;await loadContractors();if(curTab==='money')renderMoney()}
+  else showMsg('con-msg','err',r.message);
 }
 
 // ── STOCK / INVENTORY ON HAND ──
