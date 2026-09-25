@@ -1435,7 +1435,7 @@ async function submitInventory(){
 // ── MONEY: TIP LOG + CONTRACTOR / 1099 LOG ──
 var tips=[],tipsByPerson=[],tipsOwed=0,tipPeople=['Seth','Sam','David','Robin','Split','Pooled'],tipsLoaded=false;
 var conPays=[],conBy=[],conThreshold=600,conLoaded=false;
-var moneyView='tips';
+var moneyView='tips',curTipGroups=[];
 
 function money(n){return '$'+(Number(n)||0).toFixed(2)}
 function moneyTab(v){moneyView=v;renderMoney()}
@@ -1505,23 +1505,84 @@ function tipsHtml(){
   h+='<button class="btn btn-pri" onclick="submitTip()">💵 Log Tip</button>';
   h+='<div class="ai-msg" id="tip-msg"></div>';
 
-  h+='<div class="section-header">📋 Recent Tips</div>';
-  var rows=tips.slice().reverse().slice(0,25);
-  if(!rows.length)h+='<div style="padding:16px;color:var(--mut)">Nothing logged yet.</div>';
-  rows.forEach(function(t){
-    var paid=yes(t['Paid on Paycheck?']);
+  h+='<div class="section-header">📋 Tips by Event</div>';
+  curTipGroups=groupTips(tips);
+  var groups=curTipGroups.slice(0,20);
+  if(!groups.length)h+='<div style="padding:16px;color:var(--mut)">Nothing logged yet.</div>';
+  groups.forEach(function(g,gi){
+    var unassigned=Math.round((g.recorded-g.assigned)*100)/100;
+    var owing=g.rows.filter(function(t){return !yes(t['Paid on Paycheck?'])});
     h+='<div class="event-card"><div class="event-inner">'
-      +'<div class="event-name">'+esc(String(t['Assigned To']||'—'))+' · '+money(t['Amount'])+'</div>'
-      +'<div class="event-meta">'+esc(String(t['Date']||''))+(t['Day']?' ('+esc(String(t['Day']))+')':'')
-        +(t['Source']?' · '+esc(String(t['Source'])):'')+'</div>'
-      +(t['Event / Location']?'<div class="event-meta">'+esc(String(t['Event / Location']))+'</div>':'')
-      +(t['Notes']?'<div class="event-notes">'+esc(String(t['Notes']))+'</div>':'')
-      +'<div style="margin-top:8px">'+(paid
-        ?'<span class="badge b-done">Paid on paycheck'+(t['Paycheck Date']?' · '+esc(String(t['Paycheck Date'])):'')+'</span>'
-        :'<button class="btn btn-sm btn-blue" onclick="markTipPaid('+t._row+')">Mark paid on paycheck</button>')
-      +'</div></div></div>';
+      +'<div class="event-name">'+esc(g.event||g.source||'Tips')+' · '+money(g.assigned)+'</div>'
+      +'<div class="event-meta">'+esc(g.date)+(g.day?' ('+esc(g.day)+')':'')
+        +(g.source&&g.event?' · '+esc(g.source):'')
+        +' · '+g.rows.length+' '+(g.rows.length===1?'person':'people')+'</div>';
+    // Recorded total vs what's actually been assigned out — catches a gap.
+    if(g.recorded>0&&Math.abs(unassigned)>=0.01){
+      h+='<div class="warn-box" style="margin:8px 0">Recorded total '+money(g.recorded)+' · <strong>'
+        +money(Math.abs(unassigned))+(unassigned>0?' not assigned yet':' over-assigned')+'</strong></div>';
+    }
+    h+='<div style="margin-top:8px;border-top:1px solid var(--brd)">';
+    g.rows.forEach(function(t){
+      var paid=yes(t['Paid on Paycheck?']);
+      h+='<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--brd)">'
+        +'<div><strong>'+esc(String(t['Assigned To']||'—'))+'</strong> · '+money(t['Amount'])+'</div>'
+        +'<div style="flex:none">'+(paid
+          ?'<span class="badge b-done">Paid'+(t['Paycheck Date']?' '+esc(String(t['Paycheck Date'])):'')+'</span>'
+          :'<button class="btn btn-sm btn-blue" onclick="markTipPaid('+t._row+')">Mark paid</button>')
+        +'</div></div>';
+    });
+    h+='</div>';
+    if(owing.length>1)h+='<button class="btn btn-sm btn-blue" style="margin-top:10px" onclick="markGroupPaid('+gi+')">Mark all '+owing.length+' paid on paycheck</button>';
+    if(g.notes)h+='<div class="event-notes" style="margin-top:8px">'+esc(g.notes)+'</div>';
+    h+='</div></div>';
   });
   return h;
+}
+
+// One tip can be split across people — group those rows back into the single
+// event they came from, so the card shows the real total with a per-person
+// breakdown underneath instead of one card per person.
+function groupTips(rows){
+  var map={},order=[];
+  rows.forEach(function(t){
+    var date=String(t['Date']||'').trim();
+    var ev=String(t['Event / Location']||'').trim();
+    var src=String(t['Source']||'').trim();
+    var key=date+'||'+(ev||src||'(unlabelled)');
+    if(!map[key]){
+      map[key]={date:date,day:String(t['Day']||'').trim(),event:ev,source:src,
+                rows:[],assigned:0,paid:0,recorded:0,notes:''};
+      order.push(key);
+    }
+    var g=map[key];
+    g.rows.push(t);
+    g.assigned=Math.round((g.assigned+(Number(t['Amount'])||0))*100)/100;
+    if(yes(t['Paid on Paycheck?']))g.paid=Math.round((g.paid+(Number(t['Amount'])||0))*100)/100;
+    var rec=Number(t['Total Tip'])||0;
+    if(rec>g.recorded)g.recorded=rec;
+    if(!g.event&&ev)g.event=ev;
+    if(!g.source&&src)g.source=src;
+    if(!g.notes&&t['Notes'])g.notes=String(t['Notes']);
+  });
+  return order.map(function(k){return map[k]})
+              .sort(function(a,b){return String(b.date).localeCompare(String(a.date))});
+}
+
+async function markGroupPaid(gi){
+  var g=curTipGroups[gi];if(!g)return;
+  var owing=g.rows.filter(function(t){return !yes(t['Paid on Paycheck?'])});
+  if(!owing.length)return;
+  showMsg('tip-msg','','Marking '+owing.length+' paid…');
+  var d=today10(),failed=0;
+  for(var i=0;i<owing.length;i++){
+    var r=await apiCall({action:'updateTip',row:owing[i]._row,updates:{
+      'Paid on Paycheck?':'Yes','Paycheck Date':d,'Added to QB Payroll?':'Yes'}});
+    if(!r.success)failed++;
+  }
+  tipsLoaded=false;await loadTips();if(curTab==='money')renderMoney();
+  if(failed)showMsg('tip-msg','err',failed+' row(s) failed — reload and try again.');
+  else showMsg('tip-msg','ok','✅ Marked '+owing.length+' paid on paycheck.');
 }
 
 // Monday card tips go to Seth — pre-selects, still overridable.
